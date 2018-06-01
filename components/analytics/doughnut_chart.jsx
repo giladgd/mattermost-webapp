@@ -1,11 +1,10 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {FormattedMessage} from 'react-intl';
-
 import Chart from 'chart.js';
 
 import * as Utils from 'utils/utils.jsx';
@@ -31,7 +30,7 @@ export default class DoughnutChart extends React.PureComponent {
         /*
          * Chart data
          */
-        data: PropTypes.object
+        data: PropTypes.object,
     };
 
     chart = null;

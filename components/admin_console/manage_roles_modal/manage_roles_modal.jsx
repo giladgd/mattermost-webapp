@@ -1,11 +1,10 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {Modal} from 'react-bootstrap';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
-
 import {Client4} from 'mattermost-redux/client';
 import {General} from 'mattermost-redux/constants';
 import * as UserUtils from 'mattermost-redux/utils/user_utils';
@@ -20,7 +19,7 @@ function getStateFromProps(props) {
         hasPostAllRole: UserUtils.hasPostAllRole(roles),
         hasPostAllPublicRole: UserUtils.hasPostAllPublicRole(roles),
         hasUserAccessTokenRole: UserUtils.hasUserAccessTokenRole(roles),
-        isSystemAdmin: UserUtils.isSystemAdmin(roles)
+        isSystemAdmin: UserUtils.isSystemAdmin(roles),
     };
 }
 
@@ -52,8 +51,8 @@ export default class ManageRolesModal extends React.PureComponent {
             /**
              * Function to update a user's roles
              */
-            updateUserRoles: PropTypes.func.isRequired
-        }).isRequired
+            updateUserRoles: PropTypes.func.isRequired,
+        }).isRequired,
     };
 
     constructor(props) {
@@ -61,7 +60,7 @@ export default class ManageRolesModal extends React.PureComponent {
         this.state = getStateFromProps(props);
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         const user = this.props.user || {};
         const nextUser = nextProps.user || {};
         if (user.id !== nextUser.id) {
@@ -71,7 +70,7 @@ export default class ManageRolesModal extends React.PureComponent {
 
     handleError = (error) => {
         this.setState({
-            error
+            error,
         });
     }
 
@@ -85,19 +84,19 @@ export default class ManageRolesModal extends React.PureComponent {
 
     handleUserAccessTokenChange = (e) => {
         this.setState({
-            hasUserAccessTokenRole: e.target.checked
+            hasUserAccessTokenRole: e.target.checked,
         });
     };
 
     handlePostAllChange = (e) => {
         this.setState({
-            hasPostAllRole: e.target.checked
+            hasPostAllRole: e.target.checked,
         });
     };
 
     handlePostAllPublicChange = (e) => {
         this.setState({
-            hasPostAllPublicRole: e.target.checked
+            hasPostAllPublicRole: e.target.checked,
         });
     };
 

@@ -1,9 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 
+import messageHtmlToComponent from 'utils/message_html_to_component';
 import * as TextFormatting from 'utils/text_formatting.jsx';
 import {getSiteURL} from 'utils/url.jsx';
 import * as Utils from 'utils/utils.jsx';
@@ -17,14 +18,15 @@ export default class MessageWrapper extends React.Component {
     render() {
         if (this.props.message) {
             const options = Object.assign({}, this.props.options, {
-                siteURL: getSiteURL()
+                siteURL: getSiteURL(),
             });
 
+            const formattedText = TextFormatting.formatText(this.props.message, options);
+
             return (
-                <div
-                    onClick={Utils.handleFormattedTextClick}
-                    dangerouslySetInnerHTML={{__html: TextFormatting.formatText(this.props.message, options)}}
-                />
+                <div onClick={Utils.handleFormattedTextClick}>
+                    {messageHtmlToComponent(formattedText, false, {mentions: false})}
+                </div>
             );
         }
 
@@ -33,9 +35,9 @@ export default class MessageWrapper extends React.Component {
 }
 
 MessageWrapper.defaultProps = {
-    message: ''
+    message: '',
 };
 MessageWrapper.propTypes = {
     message: PropTypes.string,
-    options: PropTypes.object
+    options: PropTypes.object,
 };

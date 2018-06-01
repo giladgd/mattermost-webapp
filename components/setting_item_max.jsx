@@ -1,26 +1,106 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
 
 import SaveButton from 'components/save_button.jsx';
-
 import Constants from 'utils/constants.jsx';
-import * as Utils from 'utils/utils.jsx';
+import {isKeyPressed} from 'utils/utils.jsx';
 
-export default class SettingItemMax extends React.Component {
-    constructor(props) {
-        super(props);
+export default class SettingItemMax extends React.PureComponent {
+    static defaultProps = {
+        infoPosition: 'bottom',
+        saving: false,
+        section: '',
+        containerStyle: '',
+    };
 
-        this.onKeyDown = this.onKeyDown.bind(this);
-    }
+    static propTypes = {
 
-    onKeyDown(e) {
-        if (e.keyCode === Constants.KeyCodes.ENTER && this.props.submit) {
-            this.props.submit(e);
-        }
+        /**
+         * Array of inputs selection
+         */
+        inputs: PropTypes.array,
+
+        /**
+         * Styles for main component
+         */
+        containerStyle: PropTypes.string,
+
+        /**
+         * Client error
+         */
+        clientError: PropTypes.oneOfType([
+            PropTypes.string,
+            PropTypes.object,
+        ]),
+
+        /**
+         * Server error
+         */
+        serverError: PropTypes.string,
+
+        /**
+         * Settings extra information
+         */
+        extraInfo: PropTypes.element,
+
+        /**
+         * Info position
+         */
+        infoPosition: PropTypes.string,
+
+        /**
+         * Settings or tab section
+         */
+        section: PropTypes.string,
+
+        /**
+         * Function to update section
+         */
+        updateSection: PropTypes.func,
+
+        /**
+         * setting to submit
+         */
+        setting: PropTypes.string,
+
+        /**
+         * Function to submit setting
+         */
+        submit: PropTypes.func,
+
+        /**
+         * Extra information on submit
+         */
+        submitExtra: PropTypes.node,
+
+        /**
+         * Indicates whether setting is on saving
+         */
+        saving: PropTypes.bool,
+
+        /**
+         * Settings title
+         */
+        title: PropTypes.node,
+
+        /**
+         * Settings width
+         */
+        width: PropTypes.string,
+
+        /**
+         * Text of cancel button
+         */
+        cancelButtonText: PropTypes.node,
+
+        /**
+         * Avoid submitting when using SHIFT + ENTER
+         */
+        shiftEnter: PropTypes.bool,
     }
 
     componentDidMount() {
@@ -31,36 +111,60 @@ export default class SettingItemMax extends React.Component {
         document.removeEventListener('keydown', this.onKeyDown);
     }
 
+    onKeyDown = (e) => {
+        if (this.props.shiftEnter && e.keyCode === Constants.KeyCodes.ENTER && e.shiftKey) {
+            return;
+        }
+        if (isKeyPressed(e, Constants.KeyCodes.ENTER) && this.props.submit) {
+            this.handleSubmit(e);
+        }
+    }
+
+    handleSubmit = (e) => {
+        e.preventDefault();
+
+        if (this.props.setting) {
+            this.props.submit(this.props.setting);
+        } else {
+            this.props.submit();
+        }
+    }
+
+    handleUpdateSection = (e) => {
+        this.props.updateSection(this.props.section);
+        e.preventDefault();
+    }
+
     render() {
-        var clientError = null;
-        if (this.props.client_error) {
+        let clientError = null;
+        if (this.props.clientError) {
             clientError = (
                 <div className='form-group'>
                     <label
                         id='clientError'
                         className='col-sm-12 has-error'
                     >
-                        {this.props.client_error}
+                        {this.props.clientError}
                     </label>
                 </div>
             );
         }
 
-        var serverError = null;
-        if (this.props.server_error) {
+        let serverError = null;
+        if (this.props.serverError) {
             serverError = (
                 <div className='form-group'>
                     <label
                         id='serverError'
                         className='col-sm-12 has-error'
                     >
-                        {this.props.server_error}
+                        {this.props.serverError}
                     </label>
                 </div>
             );
         }
 
-        var extraInfo = null;
+        let extraInfo = null;
         let hintClass = 'setting-list__hint';
         if (this.props.infoPosition === 'top') {
             hintClass = 'padding-bottom x2';
@@ -70,19 +174,19 @@ export default class SettingItemMax extends React.Component {
             extraInfo = (<div className={hintClass}>{this.props.extraInfo}</div>);
         }
 
-        var submit = '';
+        let submit = '';
         if (this.props.submit) {
             submit = (
                 <SaveButton
                     saving={this.props.saving}
                     disabled={this.props.saving}
-                    onClick={this.props.submit}
+                    onClick={this.handleSubmit}
                 />
             );
         }
 
-        var inputs = this.props.inputs;
-        var widthClass;
+        const inputs = this.props.inputs;
+        let widthClass;
         if (this.props.width === 'full') {
             widthClass = 'col-sm-12';
         } else if (this.props.width === 'medium') {
@@ -92,10 +196,8 @@ export default class SettingItemMax extends React.Component {
         }
 
         let title;
-        let titleProp = 'unknownTitle';
         if (this.props.title) {
             title = <li className='col-sm-12 section-title'>{this.props.title}</li>;
-            titleProp = this.props.title;
         }
 
         let listContent = (
@@ -127,7 +229,9 @@ export default class SettingItemMax extends React.Component {
         }
 
         return (
-            <ul className='section-max form-horizontal'>
+            <ul
+                className={`section-max form-horizontal ${this.props.containerStyle}`}
+            >
                 {title}
                 <li className={widthClass}>
                     <ul className='setting-list'>
@@ -139,9 +243,9 @@ export default class SettingItemMax extends React.Component {
                             {clientError}
                             {submit}
                             <button
-                                id={Utils.createSafeId(titleProp) + 'Cancel'}
+                                id={'cancelSetting'}
                                 className='btn btn-sm cursor--pointer style--none'
-                                onClick={this.props.updateSection}
+                                onClick={this.handleUpdateSection}
                             >
                                 {cancelButtonText}
                             </button>
@@ -152,23 +256,3 @@ export default class SettingItemMax extends React.Component {
         );
     }
 }
-
-SettingItemMax.propTypes = {
-    inputs: PropTypes.array,
-    client_error: PropTypes.string,
-    server_error: PropTypes.string,
-    extraInfo: PropTypes.element,
-    infoPosition: PropTypes.string,
-    updateSection: PropTypes.func,
-    submit: PropTypes.func,
-    saving: PropTypes.bool,
-    title: PropTypes.node,
-    width: PropTypes.string,
-    submitExtra: PropTypes.node,
-    cancelButtonText: PropTypes.node
-};
-
-SettingItemMax.defaultProps = {
-    infoPosition: 'bottom',
-    saving: false
-};

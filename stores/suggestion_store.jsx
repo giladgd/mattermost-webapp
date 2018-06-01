@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import EventEmitter from 'events';
 
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
-
 import Constants from 'utils/constants.jsx';
 
 const ActionTypes = Constants.ActionTypes;
@@ -95,7 +94,7 @@ class SuggestionStore extends EventEmitter {
             terms: [],
             items: [],
             components: [],
-            selection: ''
+            selection: '',
         });
     }
 
@@ -116,6 +115,10 @@ class SuggestionStore extends EventEmitter {
         const suggestion = this.getSuggestions(id);
 
         suggestion.selection = '';
+    }
+
+    suggestionBoxExists(id) {
+        return this.suggestions.has(id);
     }
 
     hasSuggestions(id) {
@@ -239,22 +242,6 @@ class SuggestionStore extends EventEmitter {
         return pretext.endsWith(matchedPretext);
     }
 
-    setSuggestionsPending(id, pending) {
-        this.suggestions.get(id).suggestionsPending = pending;
-    }
-
-    areSuggestionsPending(id) {
-        return this.suggestions.get(id).suggestionsPending;
-    }
-
-    setCompletePending(id, pending) {
-        this.suggestions.get(id).completePending = pending;
-    }
-
-    isCompletePending(id) {
-        return this.suggestions.get(id).completePending;
-    }
-
     completeWord(id, term = '', matchedPretext = '') {
         this.emitCompleteWord(id, term || this.getSelection(id), matchedPretext || this.getSelectedMatchedPretext(id));
 
@@ -266,6 +253,10 @@ class SuggestionStore extends EventEmitter {
 
     handleEventPayload(payload) {
         const {type, id, ...other} = payload.action;
+
+        if (id && !this.suggestionBoxExists(id)) {
+            return;
+        }
 
         switch (type) {
         case ActionTypes.SUGGESTION_PRETEXT_CHANGED:
@@ -292,13 +283,7 @@ class SuggestionStore extends EventEmitter {
             this.addSuggestions(id, other.terms, other.items, other.component, other.matchedPretext);
             this.ensureSelectionExists(id);
 
-            this.setSuggestionsPending(id, false);
-
-            if (this.isCompletePending(id)) {
-                this.completeWord(id);
-            } else {
-                this.emitSuggestionsChanged(id);
-            }
+            this.emitSuggestionsChanged(id);
             break;
         case ActionTypes.SUGGESTION_CLEAR_SUGGESTIONS:
             this.setPretext(id, '');
@@ -315,11 +300,7 @@ class SuggestionStore extends EventEmitter {
             this.emitSuggestionsChanged(id);
             break;
         case ActionTypes.SUGGESTION_COMPLETE_WORD:
-            if (this.areSuggestionsPending(id)) {
-                this.setCompletePending(id, true);
-            } else {
-                this.completeWord(id, other.term, other.matchedPretext);
-            }
+            this.completeWord(id, other.term, other.matchedPretext);
             break;
         case ActionTypes.POPOVER_MENTION_KEY_CLICK:
             this.emitPopoverMentionKeyClick(other.isRHS, other.mentionKey);

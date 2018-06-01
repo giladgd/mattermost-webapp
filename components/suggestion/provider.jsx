@@ -1,7 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
-import SuggestionStore from 'stores/suggestion_store.jsx';
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 export default class Provider {
     constructor() {
@@ -17,9 +15,6 @@ export default class Provider {
     startNewRequest(suggestionId, prefix) {
         this.latestPrefix = prefix;
         this.latestComplete = false;
-
-        // Don't use the dispatcher here since this is only called while handling an event
-        SuggestionStore.setSuggestionsPending(suggestionId, true);
     }
 
     shouldCancelDispatch(prefix) {

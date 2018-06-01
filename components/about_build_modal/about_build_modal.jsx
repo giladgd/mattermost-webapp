@@ -1,16 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {Modal} from 'react-bootstrap';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
 
-import Constants from 'utils/constants.jsx';
+import MattermostLogo from 'components/svg/mattermost_logo';
 
 export default class AboutBuildModal extends React.PureComponent {
     static defaultProps = {
-        show: false
+        show: false,
     };
 
     static propTypes = {
@@ -33,7 +33,12 @@ export default class AboutBuildModal extends React.PureComponent {
         /**
          * Global license object
          */
-        license: PropTypes.object.isRequired
+        license: PropTypes.object.isRequired,
+
+        /**
+         * Webapp build hash override. By default, webpack sets this (so it must be overridden in tests).
+         */
+        webappBuildHash: PropTypes.string,
     };
 
     constructor(props) {
@@ -48,7 +53,6 @@ export default class AboutBuildModal extends React.PureComponent {
     render() {
         const config = this.props.config;
         const license = this.props.license;
-        const mattermostLogo = Constants.MATTERMOST_ICON_SVG;
 
         let title = (
             <FormattedMessage
@@ -131,9 +135,23 @@ export default class AboutBuildModal extends React.PureComponent {
             }
         }
 
-        let version = '\u00a0' + config.Version;
-        if (config.BuildNumber !== config.Version) {
-            version += '\u00a0 (' + config.BuildNumber + ')';
+        // Only show build number if it's a number (so only builds from Jenkins)
+        let buildnumber = (
+            <div>
+                <FormattedMessage
+                    id='about.buildnumber'
+                    defaultMessage='Build Number:'
+                />
+                <span id='buildnumberString'>{'\u00a0' + config.BuildNumber}</span>
+            </div>
+        );
+        if (isNaN(config.BuildNumber)) {
+            buildnumber = null;
+        }
+
+        let mmversion = config.BuildNumber;
+        if (!isNaN(config.BuildNumber)) {
+            mmversion = 'ci';
         }
 
         return (
@@ -153,10 +171,7 @@ export default class AboutBuildModal extends React.PureComponent {
                 <Modal.Body>
                     <div className='about-modal__content'>
                         <div className='about-modal__logo'>
-                            <span
-                                className='icon'
-                                dangerouslySetInnerHTML={{__html: mattermostLogo}}
-                            />
+                            <MattermostLogo/>
                         </div>
                         <div>
                             <h3 className='about-modal__title'>{'Mattermost'} {title}</h3>
@@ -165,10 +180,18 @@ export default class AboutBuildModal extends React.PureComponent {
                                 <div>
                                     <FormattedMessage
                                         id='about.version'
-                                        defaultMessage='Version:'
+                                        defaultMessage='Mattermost Version:'
                                     />
-                                    <span id='versionString'>{version}</span>
+                                    <span id='versionString'>{'\u00a0' + mmversion}</span>
                                 </div>
+                                <div>
+                                    <FormattedMessage
+                                        id='about.dbversion'
+                                        defaultMessage='Database Schema Version:'
+                                    />
+                                    <span id='dbversionString'>{'\u00a0' + config.Version}</span>
+                                </div>
+                                {buildnumber}
                                 <div>
                                     <FormattedMessage
                                         id='about.database'
@@ -187,7 +210,7 @@ export default class AboutBuildModal extends React.PureComponent {
                                 id='about.copyright'
                                 defaultMessage='Copyright 2015 - {currentYear} Mattermost, Inc. All rights reserved'
                                 values={{
-                                    currentYear: new Date().getFullYear()
+                                    currentYear: new Date().getFullYear(),
                                 }}
                             />
                         </div>
@@ -213,6 +236,12 @@ export default class AboutBuildModal extends React.PureComponent {
                                 defaultMessage='EE Build Hash:'
                             />
                             &nbsp;{config.BuildHashEnterprise}
+                            <br/>
+                            <FormattedMessage
+                                id='about.hashwebapp'
+                                defaultMessage='Webapp Build Hash:'
+                            />
+                            &nbsp;{/* global COMMIT_HASH */ this.props.webappBuildHash || (typeof COMMIT_HASH === 'undefined' ? '' : COMMIT_HASH)}
                         </p>
                         <p>
                             <FormattedMessage

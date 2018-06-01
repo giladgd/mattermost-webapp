@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -9,7 +9,7 @@ import EmojiStore from 'stores/emoji_store.jsx';
 
 export default class EmojiPickerPreview extends React.Component {
     static propTypes = {
-        emoji: PropTypes.object
+        emoji: PropTypes.object,
     }
 
     render() {

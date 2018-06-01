@@ -1,7 +1,8 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 module.exports = {
+
     // this controls whether to abort the test execution when an assertion failed and skip the rest
     // it's being used in waitFor commands and expect assertions
     abortOnAssertionFailure: true,
@@ -23,33 +24,33 @@ module.exports = {
     asyncHookTimeout: 10000,
 
     default: {
-        myGlobal: function() {
-            return "";
-        }
+        myGlobal() {
+            return '';
+        },
     },
 
     test_env: {
         myGlobal: 'test_global',
-        beforeEach: function() {}
+        beforeEach() {},
     },
 
-    before: function(cb) {
+    before(cb) {
         cb();
     },
 
-    beforeEach: function(browser, cb) {
+    beforeEach(browser, cb) {
         cb();
     },
 
-    after: function(cb) {
+    after(cb) {
         cb();
     },
 
-    afterEach: function(browser, cb) {
+    afterEach(browser, cb) {
         cb();
     },
 
-    reporter: function(results, cb) {
+    reporter(results, cb) {
         cb();
-    }
+    },
 };

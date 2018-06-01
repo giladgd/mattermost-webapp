@@ -1,11 +1,12 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {OverlayTrigger, Tooltip} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
 
+import {emitEmojiPosted} from 'actions/post_actions.jsx';
 import * as Utils from 'utils/utils.jsx';
 
 export default class Reaction extends React.PureComponent {
@@ -47,6 +48,16 @@ export default class Reaction extends React.PureComponent {
         reactions: PropTypes.arrayOf(PropTypes.object).isRequired,
 
         /*
+         * True if the user has the permission to add a reaction in this channel
+         */
+        canAddReaction: PropTypes.bool.isRequired,
+
+        /*
+         * True if user has the permission to remove his own reactions in this channel
+         */
+        canRemoveReaction: PropTypes.bool.isRequired,
+
+        /*
          * The URL of the emoji image
          */
         emojiImageUrl: PropTypes.string.isRequired,
@@ -66,8 +77,8 @@ export default class Reaction extends React.PureComponent {
             /*
              * Function to remove a reaction from a post
              */
-            removeReaction: PropTypes.func.isRequired
-        })
+            removeReaction: PropTypes.func.isRequired,
+        }),
     }
 
     constructor(props) {
@@ -79,7 +90,9 @@ export default class Reaction extends React.PureComponent {
 
     addReaction(e) {
         e.preventDefault();
-        this.props.actions.addReaction(this.props.post.id, this.props.emojiName);
+        const {actions, post, emojiName} = this.props;
+        actions.addReaction(post.id, emojiName);
+        emitEmojiPosted(emojiName);
     }
 
     removeReaction(e) {
@@ -104,7 +117,7 @@ export default class Reaction extends React.PureComponent {
             if (user.id === this.props.currentUserId) {
                 currentUserReacted = true;
             } else {
-                users.push(Utils.displayUsernameForUser(user));
+                users.push(Utils.getDisplayNameByUser(user));
             }
         }
 
@@ -123,7 +136,7 @@ export default class Reaction extends React.PureComponent {
                         defaultMessage='{users} and {otherUsers, number} other {otherUsers, plural, one {user} other {users}}'
                         values={{
                             users: users.join(', '),
-                            otherUsers: otherUsersCount
+                            otherUsers: otherUsersCount,
                         }}
                     />
                 );
@@ -133,7 +146,7 @@ export default class Reaction extends React.PureComponent {
                         id='reaction.othersReacted'
                         defaultMessage='{otherUsers, number} {otherUsers, plural, one {user} other {users}}'
                         values={{
-                            otherUsers: otherUsersCount
+                            otherUsers: otherUsersCount,
                         }}
                     />
                 );
@@ -145,7 +158,7 @@ export default class Reaction extends React.PureComponent {
                     defaultMessage='{users} and {lastUser}'
                     values={{
                         users: users.slice(0, -1).join(', '),
-                        lastUser: users[users.length - 1]
+                        lastUser: users[users.length - 1],
                     }}
                 />
             );
@@ -193,7 +206,7 @@ export default class Reaction extends React.PureComponent {
                 values={{
                     users: <b>{names}</b>,
                     reactionVerb,
-                    emoji: <b>{':' + this.props.emojiName + ':'}</b>
+                    emoji: <b>{':' + this.props.emojiName + ':'}</b>,
                 }}
             />
         );
@@ -202,16 +215,18 @@ export default class Reaction extends React.PureComponent {
         let clickTooltip;
         let className = 'post-reaction';
         if (currentUserReacted) {
-            handleClick = this.removeReaction;
-            clickTooltip = (
-                <FormattedMessage
-                    id='reaction.clickToRemove'
-                    defaultMessage='(click to remove)'
-                />
-            );
+            if (this.props.canRemoveReaction) {
+                handleClick = this.removeReaction;
+                clickTooltip = (
+                    <FormattedMessage
+                        id='reaction.clickToRemove'
+                        defaultMessage='(click to remove)'
+                    />
+                );
+            }
 
             className += ' post-reaction--current-user';
-        } else {
+        } else if (!currentUserReacted && this.props.canAddReaction) {
             handleClick = this.addReaction;
             clickTooltip = (
                 <FormattedMessage

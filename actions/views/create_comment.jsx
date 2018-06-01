@@ -1,21 +1,18 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {createSelector} from 'reselect';
-
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {makeGetMessageInHistoryItem, makeGetCommentCountForPost, getPost} from 'mattermost-redux/selectors/entities/posts';
 import {getCustomEmojisByName} from 'mattermost-redux/selectors/entities/emojis';
-
 import {
-  addReaction,
-  removeReaction,
-  addMessageIntoHistory,
-  moveHistoryIndexBack,
-  moveHistoryIndexForward
+    addReaction,
+    removeReaction,
+    addMessageIntoHistory,
+    moveHistoryIndexBack,
+    moveHistoryIndexForward,
 } from 'mattermost-redux/actions/posts';
-
 import {Posts} from 'mattermost-redux/constants';
 
 import * as PostActions from 'actions/post_actions.jsx';
@@ -23,16 +20,13 @@ import * as GlobalActions from 'actions/global_actions.jsx';
 import * as ChannelActions from 'actions/channel_actions.jsx';
 import {setGlobalItem, actionOnGlobalItemsWithPrefix} from 'actions/storage';
 import {EmojiMap} from 'stores/emoji_store.jsx';
-
-import {makeGetCommentDraft} from 'selectors/rhs';
+import {getPostDraft} from 'selectors/rhs';
 
 import * as Utils from 'utils/utils.jsx';
-import {Constants} from 'utils/constants.jsx';
-
-import {REACTION_PATTERN} from 'components/create_post.jsx';
+import {Constants, StoragePrefixes} from 'utils/constants.jsx';
 
 export function clearCommentDraftUploads() {
-    return actionOnGlobalItemsWithPrefix('comment_draft_', (key, value) => {
+    return actionOnGlobalItemsWithPrefix(StoragePrefixes.COMMENT_DRAFT, (key, value) => {
         if (value) {
             return {...value, uploadsInProgress: []};
         }
@@ -41,16 +35,14 @@ export function clearCommentDraftUploads() {
 }
 
 export function updateCommentDraft(rootId, draft) {
-    return setGlobalItem(`comment_draft_${rootId}`, draft);
+    return setGlobalItem(`${StoragePrefixes.COMMENT_DRAFT}${rootId}`, draft);
 }
 
 export function makeOnMoveHistoryIndex(rootId, direction) {
     const getMessageInHistory = makeGetMessageInHistoryItem(Posts.MESSAGE_TYPES.COMMENT);
-    const getCommentDraft = makeGetCommentDraft(rootId);
 
     return () => (dispatch, getState) => {
-        const draft = getCommentDraft(getState());
-
+        const draft = getPostDraft(getState(), StoragePrefixes.COMMENT_DRAFT, rootId);
         if (draft.message !== '' && draft.message !== getMessageInHistory(getState())) {
             return;
         }
@@ -83,7 +75,7 @@ export function submitPost(channelId, rootId, draft) {
             parent_id: rootId,
             pending_post_id: `${userId}:${time}`,
             user_id: userId,
-            create_at: time
+            create_at: time,
         };
 
         GlobalActions.emitUserCommentedEvent(post);
@@ -96,6 +88,7 @@ export function submitReaction(postId, action, emojiName) {
     return (dispatch) => {
         if (action === '+') {
             dispatch(addReaction(postId, emojiName));
+            PostActions.emitEmojiPosted(emojiName);
         } else if (action === '-') {
             dispatch(removeReaction(postId, emojiName));
         }
@@ -112,7 +105,7 @@ export function submitCommand(channelId, rootId, draft) {
             channel_id: channelId,
             team_id: teamId,
             root_id: rootId,
-            parent_id: rootId
+            parent_id: rootId,
         };
 
         const {message} = draft;
@@ -130,17 +123,15 @@ export function submitCommand(channelId, rootId, draft) {
 }
 
 export function makeOnSubmit(channelId, rootId, latestPostId) {
-    const getCommentDraft = makeGetCommentDraft(rootId);
-
     return () => async (dispatch, getState) => {
-        const draft = getCommentDraft(getState());
+        const draft = getPostDraft(getState(), StoragePrefixes.COMMENT_DRAFT, rootId);
         const {message} = draft;
 
         dispatch(addMessageIntoHistory(message));
 
         dispatch(updateCommentDraft(rootId, null));
 
-        const isReaction = REACTION_PATTERN.exec(message);
+        const isReaction = Utils.REACTION_PATTERN.exec(message);
 
         const emojis = getCustomEmojisByName(getState());
         const emojiMap = new EmojiMap(emojis);
@@ -210,8 +201,9 @@ export function makeOnEditLatestPost(channelId, rootId) {
         dispatch(PostActions.setEditingPost(
             lastPost.id,
             getCommentCount(state, {post: lastPost}),
-            '#reply_textbox',
-            Utils.localizeMessage('create_comment.commentTitle', 'Comment')
+            'reply_textbox',
+            Utils.localizeMessage('create_comment.commentTitle', 'Comment'),
+            true
         ));
     };
 }

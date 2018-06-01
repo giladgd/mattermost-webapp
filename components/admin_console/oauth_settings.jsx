@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
@@ -85,7 +85,7 @@ export default class OAuthSettings extends AdminSettings {
             gitLabUrl: config.GitLabSettings.UserApiEndpoint.replace('/api/v4/user', ''),
             userApiEndpoint: settings.UserApiEndpoint,
             authEndpoint: settings.AuthEndpoint,
-            tokenEndpoint: settings.TokenEndpoint
+            tokenEndpoint: settings.TokenEndpoint,
         };
     }
 
@@ -107,7 +107,7 @@ export default class OAuthSettings extends AdminSettings {
             gitLabUrl,
             userApiEndpoint: settings.UserApiEndpoint,
             authEndpoint: settings.AuthEndpoint,
-            tokenEndpoint: settings.TokenEndpoint
+            tokenEndpoint: settings.TokenEndpoint,
         });
 
         this.handleChange(id, value);
@@ -124,9 +124,17 @@ export default class OAuthSettings extends AdminSettings {
             gitLabUrl: value,
             userApiEndpoint: trimmedValue + '/api/v4/user',
             authEndpoint: trimmedValue + '/oauth/authorize',
-            tokenEndpoint: trimmedValue + '/oauth/token'
+            tokenEndpoint: trimmedValue + '/oauth/token',
         });
     }
+
+    isGitLabURLSetByEnv = () => {
+        // Assume that if one of these has been set using an environment variable,
+        // all of them have been set that way
+        return this.isSetByEnv('GitLabSettings.AuthEndpoint') ||
+            this.isSetByEnv('GitLabSettings.TokenEndpoint') ||
+            this.isSetByEnv('GitLabSettings.UserApiEndpoint');
+    };
 
     renderTitle() {
         return (
@@ -148,7 +156,7 @@ export default class OAuthSettings extends AdminSettings {
                             defaultMessage='Client ID:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.google.clientIdExample', 'Ex "7602141235235-url0fhs1mayfasbmop5qlfns8dh4.apps.googleusercontent.com"')}
+                    placeholder={Utils.localizeMessage('admin.google.clientIdExample', 'E.g.: "7602141235235-url0fhs1mayfasbmop5qlfns8dh4.apps.googleusercontent.com"')}
                     helpText={
                         <FormattedMessage
                             id='admin.google.clientIdDescription'
@@ -157,6 +165,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value={this.state.id}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('GoogleSettings.Id')}
                 />
                 <TextSetting
                     id='secret'
@@ -166,7 +175,7 @@ export default class OAuthSettings extends AdminSettings {
                             defaultMessage='Client Secret:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.google.clientSecretExample', 'Ex "H8sz0Az-dDs2p15-7QzD231"')}
+                    placeholder={Utils.localizeMessage('admin.google.clientSecretExample', 'E.g.: "H8sz0Az-dDs2p15-7QzD231"')}
                     helpText={
                         <FormattedMessage
                             id='admin.google.clientSecretDescription'
@@ -175,6 +184,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value={this.state.secret}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('GoogleSettings.Secret')}
                 />
                 <TextSetting
                     id='userApiEndpoint'
@@ -186,6 +196,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value='https://www.googleapis.com/plus/v1/people/me'
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='authEndpoint'
@@ -197,6 +208,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value='https://accounts.google.com/o/oauth2/v2/auth'
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='tokenEndpoint'
@@ -208,6 +220,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value='https://www.googleapis.com/oauth2/v4/token'
                     disabled={true}
+                    setByEnv={false}
                 />
             </div>
         );
@@ -224,7 +237,7 @@ export default class OAuthSettings extends AdminSettings {
                             defaultMessage='Application ID:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.office365.clientIdExample', 'Ex "adf3sfa2-ag3f-sn4n-ids0-sh1hdax192qq"')}
+                    placeholder={Utils.localizeMessage('admin.office365.clientIdExample', 'E.g.: "adf3sfa2-ag3f-sn4n-ids0-sh1hdax192qq"')}
                     helpText={
                         <FormattedMessage
                             id='admin.office365.clientIdDescription'
@@ -233,6 +246,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value={this.state.id}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('Office365Settings.Id')}
                 />
                 <TextSetting
                     id='secret'
@@ -242,7 +256,7 @@ export default class OAuthSettings extends AdminSettings {
                             defaultMessage='Application Secret Password:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.office365.clientSecretExample', 'Ex "shAieM47sNBfgl20f8ci294"')}
+                    placeholder={Utils.localizeMessage('admin.office365.clientSecretExample', 'E.g.: "shAieM47sNBfgl20f8ci294"')}
                     helpText={
                         <FormattedMessage
                             id='admin.office365.clientSecretDescription'
@@ -251,6 +265,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value={this.state.secret}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('Office365Settings.Secret')}
                 />
                 <TextSetting
                     id='userApiEndpoint'
@@ -262,6 +277,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value='https://graph.microsoft.com/v1.0/me'
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='authEndpoint'
@@ -273,6 +289,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value='https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='tokenEndpoint'
@@ -284,6 +301,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value='https://login.microsoftonline.com/common/oauth2/v2.0/token'
                     disabled={true}
+                    setByEnv={false}
                 />
             </div>
         );
@@ -300,7 +318,7 @@ export default class OAuthSettings extends AdminSettings {
                             defaultMessage='Application ID:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.gitlab.clientIdExample', 'Ex "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
+                    placeholder={Utils.localizeMessage('admin.gitlab.clientIdExample', 'E.g.: "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
                     helpText={
                         <FormattedMessage
                             id='admin.gitlab.clientIdDescription'
@@ -309,6 +327,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value={this.state.id}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('GitLabSettings.Id')}
                 />
                 <TextSetting
                     id='secret'
@@ -318,7 +337,7 @@ export default class OAuthSettings extends AdminSettings {
                             defaultMessage='Application Secret Key:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.gitlab.clientSecretExample', 'Ex "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
+                    placeholder={Utils.localizeMessage('admin.gitlab.clientSecretExample', 'E.g.: "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
                     helpText={
                         <FormattedMessage
                             id='admin.gitlab.clientSecretDescription'
@@ -327,6 +346,7 @@ export default class OAuthSettings extends AdminSettings {
                     }
                     value={this.state.secret}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('GitLabSettings.Secret')}
                 />
                 <TextSetting
                     id='gitlabUrl'
@@ -339,12 +359,13 @@ export default class OAuthSettings extends AdminSettings {
                     placeholder={Utils.localizeMessage('admin.gitlab.siteUrlExample', 'E.g.: https://')}
                     helpText={
                         <FormattedMessage
-                            id='admin.gitab.siteUrlDescription'
+                            id='admin.gitlab.siteUrlDescription'
                             defaultMessage='Enter the URL of your GitLab instance, e.g. https://example.com:3000. If your GitLab instance is not set up with SSL, start the URL with http:// instead of https://.'
                         />
                     }
                     value={this.state.gitLabUrl}
                     onChange={this.updateGitLabUrl}
+                    setByEnv={this.isGitLabURLSetByEnv()}
                 />
                 <TextSetting
                     id='userApiEndpoint'
@@ -357,6 +378,7 @@ export default class OAuthSettings extends AdminSettings {
                     placeholder={''}
                     value={this.state.userApiEndpoint}
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='authEndpoint'
@@ -369,6 +391,7 @@ export default class OAuthSettings extends AdminSettings {
                     placeholder={''}
                     value={this.state.authEndpoint}
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='tokenEndpoint'
@@ -381,6 +404,7 @@ export default class OAuthSettings extends AdminSettings {
                     placeholder={''}
                     value={this.state.tokenEndpoint}
                     disabled={true}
+                    setByEnv={false}
                 />
             </div>
         );
@@ -418,11 +442,11 @@ export default class OAuthSettings extends AdminSettings {
         const oauthTypes = [];
         oauthTypes.push({value: 'off', text: Utils.localizeMessage('admin.oauth.off', 'Do not allow sign-in via an OAuth 2.0 provider.')});
         oauthTypes.push({value: Constants.GITLAB_SERVICE, text: Utils.localizeMessage('admin.oauth.gitlab', 'GitLab')});
-        if (global.window.mm_license.IsLicensed === 'true') {
-            if (global.window.mm_license.GoogleOAuth === 'true') {
+        if (this.props.license.IsLicensed === 'true') {
+            if (this.props.license.GoogleOAuth === 'true') {
                 oauthTypes.push({value: Constants.GOOGLE_SERVICE, text: Utils.localizeMessage('admin.oauth.google', 'Google Apps')});
             }
-            if (global.window.mm_license.Office365OAuth === 'true') {
+            if (this.props.license.Office365OAuth === 'true') {
                 oauthTypes.push({value: Constants.OFFICE365_SERVICE, text: Utils.localizeMessage('admin.oauth.office365', 'Office 365 (Beta)')});
             }
         }
@@ -441,6 +465,7 @@ export default class OAuthSettings extends AdminSettings {
                     helpText={helpText}
                     value={this.state.oauthType}
                     onChange={this.changeType}
+                    setByEnv={false}
                 />
                 {contents}
             </SettingsGroup>

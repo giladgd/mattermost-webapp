@@ -1,19 +1,19 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {Constants} from '../utils';
 
 const acountSettingsModalPageCommands = {
     navigateToPage() {
         return this.waitForElementVisible('@accountSettingsModal', Constants.DEFAULT_WAIT);
-    }
+    },
 };
 
 const header = {selector: '#accountSettingsHeader'};
 const title = {selector: '#accountSettingsTitle'};
 const closeButton = {
     selector: '//*[@id="accountSettingsModal"]/div/div/div[1]/button',
-    locateStrategy: 'xpath'
+    locateStrategy: 'xpath',
 };
 const generalButton = {selector: '#generalButton'};
 const securityButton = {selector: '#securityButton'};
@@ -32,37 +32,40 @@ const tabList = {
         displayLi: {selector: '#displayLi'},
         displayButton,
         advancedLi: {selector: '#advancedLi'},
-        advancedButton
-    }
+        advancedButton,
+    },
 };
 
 const displaySettings = {
     selector: '#displaySettings',
     elements: {
-        themeTitle: {selector: '#ThemeTitle'},
-        themeEdit: {selector: '#ThemeEdit'},
-        themeDesc: {selector: '#ThemeDesc'},
-        clockTitle: {selector: '#Clock_DisplayTitle'},
-        clockEdit: {selector: '#Clock_DisplayEdit'},
-        clockDesc: {selector: '#Clock_DisplayDesc'},
-        linkPreviewTitle: {selector: '#Website_Link_PreviewsTitle'},
-        linkPreviewEdit: {selector: '#Website_Link_PreviewsEdit'},
-        linkPreviewDesc: {selector: '#Website_Link_PreviewsDesc'},
-        collapseTitle: {selector: '#Default_appearance_of_image_link_previewsTitle'},
-        collapseEdit: {selector: '#Default_appearance_of_image_link_previewsEdit'},
-        collapseDesc: {selector: '#Default_appearance_of_image_link_previewsDesc'},
-        messageDisplayTitle: {selector: '#Message_DisplayTitle'},
-        messageDisplayEdit: {selector: '#Message_DisplayEdit'},
-        messageDisplayDesc: {selector: '#Message_DisplayDesc'},
-        channelDisplayModeTitle: {selector: '#Channel_Display_ModeTitle'},
-        channelDisplayModeEdit: {selector: '#Channel_Display_ModeEdit'},
-        channelDisplayModeDesc: {selector: '#Channel_Display_ModeDesc'},
-        languageTitle: {selector: '#LanguageTitle'},
-        languageEdit: {selector: '#LanguageEdit'},
-        languageDesc: {selector: '#LanguageDesc'},
-    }
+        displaySettingsTitle: {selector: '#displaySettingsTitle'},
+        themeTitle: {selector: '#themeTitle'},
+        themeEdit: {selector: '#themeEdit'},
+        themeDesc: {selector: '#themeDesc'},
+        clockTitle: {selector: '#clockTitle'},
+        clockEdit: {selector: '#clockEdit'},
+        clockDesc: {selector: '#clockDesc'},
+        teammateNameDisplayTitle: {selector: '#name_formatTitle'},
+        teammateNameDisplayEdit: {selector: '#name_formatEdit'},
+        teammateNameDisplayDesc: {selector: '#name_formatDesc'},
+        linkPreviewTitle: {selector: '#linkpreviewTitle'},
+        linkPreviewEdit: {selector: '#linkpreviewEdit'},
+        linkPreviewDesc: {selector: '#linkpreviewDesc'},
+        collapseTitle: {selector: '#collapseTitle'},
+        collapseEdit: {selector: '#collapseEdit'},
+        collapseDesc: {selector: '#collapseDesc'},
+        messageDisplayTitle: {selector: '#message_displayTitle'},
+        messageDisplayEdit: {selector: '#message_displayEdit'},
+        messageDisplayDesc: {selector: '#message_displayDesc'},
+        channelDisplayModeTitle: {selector: '#channel_display_modeTitle'},
+        channelDisplayModeEdit: {selector: '#channel_display_modeEdit'},
+        channelDisplayModeDesc: {selector: '#channel_display_modeDesc'},
+        languageTitle: {selector: '#languagesTitle'},
+        languageEdit: {selector: '#languagesEdit'},
+        languageDesc: {selector: '#languagesDesc'},
+    },
 };
-
 
 module.exports = {
     url: `${Constants.TEST_BASE_URL}`,
@@ -72,7 +75,7 @@ module.exports = {
             selector: '#accountSettingsModal',
             sections: {
                 tabList,
-                displaySettings
+                displaySettings,
             },
             elements: {
                 header,
@@ -82,8 +85,8 @@ module.exports = {
                 securityButton,
                 notificationsButton,
                 displayButton,
-                advancedButton
-            }
-        }
-    }
+                advancedButton,
+            },
+        },
+    },
 };

@@ -1,11 +1,10 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
-
 import {shallow} from 'enzyme';
 
-import AddCommand from 'components/integrations/components/add_command/add_command.jsx';
+import AddCommand from 'components/integrations/add_command/add_command.jsx';
 
 describe('components/integrations/AddCommand', () => {
     test('should match snapshot', () => {
@@ -16,7 +15,7 @@ describe('components/integrations/AddCommand', () => {
                 team={{name: 'test'}}
                 addCommandRequest={{
                     status: 'not_started',
-                    error: null
+                    error: null,
                 }}
                 actions={{addCommand: emptyFunction}}
             />

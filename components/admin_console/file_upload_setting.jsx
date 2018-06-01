@@ -1,8 +1,7 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
@@ -21,7 +20,7 @@ export default class FileUploadSetting extends Setting {
             onSubmit: PropTypes.func.isRequired,
             disabled: PropTypes.bool,
             fileType: PropTypes.string.isRequired,
-            error: PropTypes.string
+            error: PropTypes.string,
         };
     }
 
@@ -33,7 +32,7 @@ export default class FileUploadSetting extends Setting {
 
         this.state = {
             fileName: null,
-            serverError: props.error
+            serverError: props.error,
         };
     }
 

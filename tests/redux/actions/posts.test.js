@@ -1,36 +1,56 @@
-// Copyright (c) 2016 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import assert from 'assert';
 
 import * as Actions from 'actions/post_actions';
-
-import configureStore from 'store'
+import configureStore from 'store';
 
 describe('Actions.Posts', () => {
+    let store;
     beforeEach(async () => {
         store = await configureStore();
     });
 
     it('setEditingPost', async () => {
         await Actions.setEditingPost('123', 0, 'test', 'title')(store.dispatch, store.getState);
+
         assert.deepEqual(
             store.getState().views.posts.editingPost,
             {
                 postId: '123',
-                commentsCount: 0,
+                commentCount: 0,
                 refocusId: 'test',
-                title: 'title'
+                show: true,
+                title: 'title',
+                isRHS: false,
             }
         );
+
         await Actions.setEditingPost('456', 3, 'test2', 'title2')(store.dispatch, store.getState);
+
         assert.deepEqual(
             store.getState().views.posts.editingPost,
             {
                 postId: '456',
-                commentsCount: 3,
+                commentCount: 3,
                 refocusId: 'test2',
-                title: 'title2'
+                show: true,
+                title: 'title2',
+                isRHS: false,
+            }
+        );
+    });
+
+    it('hideEditPostModal', async () => {
+        await Actions.setEditingPost('123', 0, 'test', 'title')(store.dispatch, store.getState);
+
+        await store.dispatch(Actions.hideEditPostModal(), store.getState);
+
+        assert.deepEqual(
+            store.getState().views.posts.editingPost,
+            {
+                show: false,
             }
         );
     });

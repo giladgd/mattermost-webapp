@@ -1,15 +1,14 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
-import {browserHistory} from 'react-router';
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import * as ChannelActions from 'mattermost-redux/actions/channels';
 import {deletePreferences, savePreferences} from 'mattermost-redux/actions/preferences';
 import {Client4} from 'mattermost-redux/client';
-import {getMyChannelMemberships} from 'mattermost-redux/selectors/entities/channels';
+import {getMyChannelMemberships} from 'mattermost-redux/selectors/entities/common';
+import {getChannel} from 'mattermost-redux/selectors/entities/channels';
 
+import {browserHistory} from 'utils/browser_history';
 import {actionOnGlobalItemsWithPrefix} from 'actions/storage';
-
 import {trackEvent} from 'actions/diagnostics_actions.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
 import * as PostActions from 'actions/post_actions.jsx';
@@ -19,15 +18,19 @@ import PreferenceStore from 'stores/preference_store.jsx';
 import store from 'stores/redux_store.jsx';
 import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import * as ChannelUtils from 'utils/channel_utils.jsx';
 import {Constants, Preferences, StoragePrefixes} from 'utils/constants.jsx';
 import * as UserAgent from 'utils/user_agent.jsx';
 import * as Utils from 'utils/utils.jsx';
-import {isUrlSafe} from 'utils/url.jsx';
+import {isUrlSafe, getSiteURL} from 'utils/url.jsx';
 
 const dispatch = store.dispatch;
 const getState = store.getState;
+
+export function goToChannelById(channelId) {
+    const channel = getChannel(getState(), channelId);
+    browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + channel.name);
+}
 
 export function goToChannel(channel) {
     if (channel.fake) {
@@ -55,7 +58,7 @@ export function executeCommand(message, args, success, error) {
         cmdLength = msg.length;
     }
     const cmd = msg.substring(0, cmdLength).toLowerCase();
-    msg = cmd + msg.substring(cmdLength, msg.length);
+    msg = cmd + ' ' + msg.substring(cmdLength, msg.length).trim();
 
     switch (cmd) {
     case '/search':
@@ -98,7 +101,7 @@ export function executeCommand(message, args, success, error) {
             if (ChannelUtils.isFavoriteChannel(channel)) {
                 unmarkFavorite(channel.id);
             }
-            browserHistory.push(`${TeamStore.getCurrentTeamRelativeUrl()}/channels/town-square`);
+            browserHistory.push(`${TeamStore.getCurrentTeamRelativeUrl()}/channels/${Constants.DEFAULT_CHANNEL}`);
             return;
         }
         break;
@@ -125,8 +128,10 @@ export function executeCommand(message, args, success, error) {
             }
 
             if (hasGotoLocation) {
-                if (data.goto_location.startsWith('/') || data.goto_location.includes(window.location.hostname)) {
+                if (data.goto_location.startsWith('/')) {
                     browserHistory.push(data.goto_location);
+                } else if (data.goto_location.startsWith(getSiteURL())) {
+                    browserHistory.push(data.goto_location.substr(getSiteURL().length));
                 } else {
                     window.open(data.goto_location);
                 }
@@ -201,7 +206,7 @@ export async function openDirectChannelToUser(userId, success, error) {
         const currentUserId = UserStore.getCurrentId();
         savePreferences(currentUserId, [
             {user_id: currentUserId, category: Preferences.CATEGORY_DIRECT_CHANNEL_SHOW, name: userId, value: 'true'},
-            {user_id: currentUserId, category: Preferences.CATEGORY_CHANNEL_OPEN_TIME, name: channel.id, value: now.toString()}
+            {user_id: currentUserId, category: Preferences.CATEGORY_CHANNEL_OPEN_TIME, name: channel.id, value: now.toString()},
         ])(dispatch, getState);
 
         if (success) {
@@ -244,7 +249,7 @@ export function unmarkFavorite(channelId) {
     const pref = {
         user_id: currentUserId,
         category: Preferences.CATEGORY_FAVORITE_CHANNEL,
-        name: channelId
+        name: channelId,
     };
 
     deletePreferences(currentUserId, [pref])(dispatch, getState);
@@ -314,18 +319,9 @@ export async function autocompleteChannels(term, success, error) {
         return;
     }
 
-    const {data, error: err} = await ChannelActions.searchChannels(teamId, term)(dispatch, getState);
+    const {data, error: err} = await ChannelActions.autocompleteChannels(teamId, term)(dispatch, getState);
     if (data && success) {
         success(data);
-    } else if (err && error) {
-        error({id: err.server_error_id, ...err});
-    }
-}
-
-export async function updateChannelNotifyProps(data, options, success, error) {
-    const {data: result, error: err} = await ChannelActions.updateChannelNotifyProps(data.user_id, data.channel_id, Object.assign({}, data, options))(dispatch, getState);
-    if (result && success) {
-        success(result);
     } else if (err && error) {
         error({id: err.server_error_id, ...err});
     }
@@ -368,14 +364,13 @@ export async function getChannelMembersForUserIds(channelId, userIds, success, e
 }
 
 export async function leaveChannel(channelId, success) {
+    const townsquare = ChannelStore.getByName('town-square');
+    browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + townsquare.name);
+
     await ChannelActions.leaveChannel(channelId)(dispatch, getState);
     if (ChannelUtils.isFavoriteChannelId(channelId)) {
         unmarkFavorite(channelId);
     }
-
-    const townsquare = ChannelStore.getByName('town-square');
-    browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + townsquare.name);
-
     if (success) {
         success();
     }

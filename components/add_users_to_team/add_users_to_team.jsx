@@ -1,23 +1,15 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {Modal} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
-import {browserHistory} from 'react-router';
-
 import {Client4} from 'mattermost-redux/client';
-import {searchProfilesNotInCurrentTeam} from 'mattermost-redux/selectors/entities/users';
 
-import {addUsersToTeam} from 'actions/team_actions.jsx';
-import {searchUsersNotInTeam} from 'actions/user_actions.jsx';
-import store from 'stores/redux_store.jsx';
-import TeamStore from 'stores/team_store.jsx';
-import UserStore from 'stores/user_store.jsx';
-
+import {loadStatusesForProfilesList} from 'actions/status_actions.jsx';
 import Constants from 'utils/constants.jsx';
-import {displayEntireNameForUser} from 'utils/utils.jsx';
+import {displayEntireNameForUser, localizeMessage} from 'utils/utils.jsx';
 
 import MultiSelect from 'components/multiselect/multiselect.jsx';
 import ProfilePicture from 'components/profile_picture.jsx';
@@ -27,63 +19,87 @@ const MAX_SELECTABLE_VALUES = 20;
 
 export default class AddUsersToTeam extends React.Component {
     static propTypes = {
+        currentTeamName: PropTypes.string.isRequired,
+        currentTeamId: PropTypes.string.isRequired,
+        searchTerm: PropTypes.string.isRequired,
+        users: PropTypes.array.isRequired,
         onModalDismissed: PropTypes.func,
         actions: PropTypes.shape({
-            getProfilesNotInTeam: PropTypes.func.isRequired
-        }).isRequired
+            getProfilesNotInTeam: PropTypes.func.isRequired,
+            setModalSearchTerm: PropTypes.func.isRequired,
+            searchProfiles: PropTypes.func.isRequired,
+            addUsersToTeam: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
         super(props);
 
-        this.handleHide = this.handleHide.bind(this);
-        this.handleExit = this.handleExit.bind(this);
-        this.handleSubmit = this.handleSubmit.bind(this);
-        this.handleDelete = this.handleDelete.bind(this);
-        this.onChange = this.onChange.bind(this);
-        this.search = this.search.bind(this);
-        this.addValue = this.addValue.bind(this);
-        this.handlePageChange = this.handlePageChange.bind(this);
-
         this.searchTimeoutId = 0;
 
         this.state = {
-            users: Object.assign([], UserStore.getProfileListNotInTeam(TeamStore.getCurrentId(), true)),
             values: [],
             show: true,
-            search: false
+            search: false,
+            saving: false,
+            addError: null,
+            loadingUsers: true,
         };
     }
 
     componentDidMount() {
-        UserStore.addChangeListener(this.onChange);
-        UserStore.addNotInTeamChangeListener(this.onChange);
-        UserStore.addStatusesChangeListener(this.onChange);
-
-        this.props.actions.getProfilesNotInTeam(TeamStore.getCurrentId(), 0, USERS_PER_PAGE * 2);
+        this.props.actions.getProfilesNotInTeam(this.props.currentTeamId, 0, USERS_PER_PAGE * 2).then(() => {
+            this.setUsersLoadingState(false);
+        });
     }
 
-    componentWillUnmount() {
-        UserStore.removeChangeListener(this.onChange);
-        UserStore.removeNotInTeamChangeListener(this.onChange);
-        UserStore.removeStatusesChangeListener(this.onChange);
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
+        if (this.props.searchTerm !== nextProps.searchTerm) {
+            clearTimeout(this.searchTimeoutId);
+
+            const searchTerm = nextProps.searchTerm;
+            if (searchTerm === '') {
+                return;
+            }
+
+            this.searchTimeoutId = setTimeout(
+                async () => {
+                    this.setUsersLoadingState(true);
+                    const {data} = await this.props.actions.searchProfiles(searchTerm, {not_in_team_id: this.props.currentTeamId});
+                    if (data) {
+                        loadStatusesForProfilesList(data);
+                    }
+                    this.setUsersLoadingState(false);
+                },
+                Constants.SEARCH_TIMEOUT_MILLISECONDS
+            );
+        }
     }
 
-    handleHide() {
+    handleHide = () => {
+        this.props.actions.setModalSearchTerm('');
         this.setState({show: false});
     }
 
-    handleExit() {
-        if (this.exitToChannel) {
-            browserHistory.push(this.exitToChannel);
-        }
-
+    handleExit = () => {
         if (this.props.onModalDismissed) {
             this.props.onModalDismissed();
         }
     }
 
-    handleSubmit(e) {
+    handleResponse = (err) => {
+        let addError = null;
+        if (err && err.message) {
+            addError = err.message;
+        }
+
+        this.setState({
+            saving: false,
+            addError,
+        });
+    }
+
+    handleSubmit = async (e) => {
         if (e) {
             e.preventDefault();
         }
@@ -93,65 +109,46 @@ export default class AddUsersToTeam extends React.Component {
             return;
         }
 
-        addUsersToTeam(TeamStore.getCurrentId(), userIds);
+        this.setState({saving: true});
 
-        this.handleHide();
+        const {error} = await this.props.actions.addUsersToTeam(this.props.currentTeamId, userIds);
+        this.handleResponse(error);
+        if (!error) {
+            this.handleHide();
+        }
     }
 
-    addValue(value) {
+    addValue = (value) => {
         const values = Object.assign([], this.state.values);
-        if (values.indexOf(value) === -1) {
+        const userIds = values.map((v) => v.id);
+        if (value && value.id && userIds.indexOf(value.id) === -1) {
             values.push(value);
         }
 
         this.setState({values});
     }
 
-    onChange() {
-        let users;
-        if (this.term) {
-            users = Object.assign([], searchProfilesNotInCurrentTeam(store.getState(), this.term, true));
-        } else {
-            users = Object.assign([], UserStore.getProfileListNotInTeam(TeamStore.getCurrentId(), true));
-        }
-
-        for (let i = 0; i < users.length; i++) {
-            const user = Object.assign({}, users[i]);
-            user.value = user.id;
-            user.label = '@' + user.username;
-            users[i] = user;
-        }
-
+    setUsersLoadingState = (loadingState) => {
         this.setState({
-            users
+            loadingUsers: loadingState,
         });
     }
 
-    handlePageChange(page, prevPage) {
+    handlePageChange = (page, prevPage) => {
         if (page > prevPage) {
-            this.props.actions.getProfilesNotInTeam(TeamStore.getCurrentId(), page + 1, USERS_PER_PAGE);
+            this.setUsersLoadingState(true);
+            this.props.actions.getProfilesNotInTeam(this.props.currentTeamId, page + 1, USERS_PER_PAGE).then(() => {
+                this.setUsersLoadingState(false);
+            });
         }
     }
 
-    search(term) {
-        clearTimeout(this.searchTimeoutId);
-        this.term = term;
-
-        if (term === '') {
-            this.onChange();
-            return;
-        }
-
-        this.searchTimeoutId = setTimeout(
-            () => {
-                searchUsersNotInTeam(term, TeamStore.getCurrentId(), {});
-            },
-            Constants.SEARCH_TIMEOUT_MILLISECONDS
-        );
-    }
-
-    handleDelete(values) {
+    handleDelete = (values) => {
         this.setState({values});
+    }
+
+    search = (term) => {
+        this.props.actions.setModalSearchTerm(term);
     }
 
     renderOption(option, isSelected, onAdd) {
@@ -201,21 +198,21 @@ export default class AddUsersToTeam extends React.Component {
                 id='multiselect.numPeopleRemaining'
                 defaultMessage='Use ↑↓ to browse, ↵ to select. You can add {num, number} more {num, plural, one {person} other {people}}. '
                 values={{
-                    num: MAX_SELECTABLE_VALUES - this.state.values.length
+                    num: MAX_SELECTABLE_VALUES - this.state.values.length,
                 }}
             />
         );
 
-        const buttonSubmitText = (
-            <FormattedMessage
-                id='multiselect.add'
-                defaultMessage='Add'
-            />
-        );
+        const buttonSubmitText = localizeMessage('multiselect.add', 'Add');
 
         let users = [];
-        if (this.state.users) {
-            users = this.state.users.filter((user) => user.delete_at === 0);
+        if (this.props.users) {
+            users = this.props.users.filter((user) => user.delete_at === 0);
+        }
+
+        let addError = null;
+        if (this.state.addError) {
+            addError = (<div className='has-error col-sm-12'><label className='control-label font-weight--normal'>{this.state.addError}</label></div>);
         }
 
         return (
@@ -232,18 +229,20 @@ export default class AddUsersToTeam extends React.Component {
                             defaultMessage='Add New Members To {teamName} Team'
                             values={{
                                 teamName: (
-                                    <strong>{TeamStore.getCurrent().display_name}</strong>
-                                )
+                                    <strong>{this.props.currentTeamName}</strong>
+                                ),
                             }}
                         />
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
+                    {addError}
                     <MultiSelect
                         key='addUsersToTeamKey'
                         options={users}
                         optionRenderer={this.renderOption}
                         values={this.state.values}
+                        valueKey='id'
                         valueRenderer={this.renderValue}
                         perPage={USERS_PER_PAGE}
                         handlePageChange={this.handlePageChange}
@@ -254,6 +253,8 @@ export default class AddUsersToTeam extends React.Component {
                         maxValues={MAX_SELECTABLE_VALUES}
                         numRemainingText={numRemainingText}
                         buttonSubmitText={buttonSubmitText}
+                        saving={this.state.saving}
+                        loading={this.state.loadingUsers}
                     />
                 </Modal.Body>
             </Modal>

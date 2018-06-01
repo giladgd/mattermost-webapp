@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -11,14 +11,14 @@ export default class FormError extends React.Component {
             type: PropTypes.node,
             error: PropTypes.node,
             margin: PropTypes.bool,
-            errors: PropTypes.arrayOf(PropTypes.node)
+            errors: PropTypes.arrayOf(PropTypes.node),
         };
     }
 
     static get defaultProps() {
         return {
             error: null,
-            errors: []
+            errors: [],
         };
     }
 
@@ -75,7 +75,7 @@ export default class FormError extends React.Component {
         return (
             <div className='col-sm-12 has-error'>
                 <label className='control-label'>
-                    {message}
+                    <i className='fa fa-exclamation-circle'/> {message}
                 </label>
             </div>
         );

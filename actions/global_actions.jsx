@@ -1,37 +1,50 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
-import {browserHistory} from 'react-router';
+import debounce from 'lodash/debounce';
 
-import {createDirectChannel, getChannelAndMyMember, getChannelStats, getMyChannelMember, joinChannel, viewChannel} from 'mattermost-redux/actions/channels';
+import {
+    getChannel,
+    createDirectChannel,
+    getChannelByNameAndTeamName,
+    getChannelAndMyMember,
+    getChannelStats,
+    getMyChannelMember,
+    joinChannel,
+    markChannelAsRead,
+    selectChannel,
+} from 'mattermost-redux/actions/channels';
 import {getPostThread} from 'mattermost-redux/actions/posts';
 import {removeUserFromTeam} from 'mattermost-redux/actions/teams';
 import {Client4} from 'mattermost-redux/client';
+import {getConfig} from 'mattermost-redux/selectors/entities/general';
+import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
+import {getCurrentChannelStats} from 'mattermost-redux/selectors/entities/channels';
 
+import {browserHistory} from 'utils/browser_history';
 import {loadChannelsForCurrentUser} from 'actions/channel_actions.jsx';
-import {trackEvent} from 'actions/diagnostics_actions.jsx';
 import {handleNewPost} from 'actions/post_actions.jsx';
 import {stopPeriodicStatusUpdates} from 'actions/status_actions.jsx';
 import {loadNewDMIfNeeded, loadNewGMIfNeeded, loadProfilesForSidebar} from 'actions/user_actions.jsx';
+import {closeRightHandSide, closeMenu as closeRhsMenu} from 'actions/views/rhs';
+import {close as closeLhs} from 'actions/views/lhs';
 import * as WebsocketActions from 'actions/websocket_actions.jsx';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import BrowserStore from 'stores/browser_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import ErrorStore from 'stores/error_store.jsx';
 import store from 'stores/redux_store.jsx';
-import SearchStore from 'stores/search_store.jsx';
 import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import WebSocketClient from 'client/web_websocket_client.jsx';
 
-import {ActionTypes, Constants, ErrorPageTypes} from 'utils/constants.jsx';
+import {ActionTypes, Constants, ErrorPageTypes, PostTypes} from 'utils/constants.jsx';
 import EventTypes from 'utils/event_types.jsx';
-import {sortTeamsByDisplayName} from 'utils/team_utils.jsx';
+import {filterAndSortTeamsByDisplayName} from 'utils/team_utils.jsx';
 import * as Utils from 'utils/utils.jsx';
-
 import en from 'i18n/en.json';
 import * as I18n from 'i18n/i18n.jsx';
+import {equalServerVersions} from 'utils/server_version';
 
 const dispatch = store.dispatch;
 const getState = store.getState;
@@ -48,35 +61,25 @@ export function emitChannelClickEvent(channel) {
         }
     }
     function switchToChannel(chan) {
-        const channelMember = ChannelStore.getMyMember(chan.id);
         const getMyChannelMemberPromise = getMyChannelMember(chan.id)(dispatch, getState);
         const oldChannelId = ChannelStore.getCurrentId();
 
         getMyChannelMemberPromise.then(() => {
             getChannelStats(chan.id)(dispatch, getState);
-            viewChannel(chan.id, oldChannelId)(dispatch, getState);
 
             // Mark previous and next channel as read
-            ChannelStore.resetCounts([chan.id, oldChannelId]);
+            dispatch(markChannelAsRead(chan.id, oldChannelId));
             reloadIfServerVersionChanged();
         });
 
-        // Subtract mentions for the team
-        const {msgs, mentions} = ChannelStore.getUnreadCounts()[chan.id] || {msgs: 0, mentions: 0};
-        TeamStore.subtractUnread(chan.team_id, msgs, mentions);
-
-        BrowserStore.setGlobalItem(chan.team_id, chan.id);
+        BrowserStore.setGlobalItem(Constants.PREV_CHANNEL_KEY + chan.team_id, chan.name);
 
         loadProfilesForSidebar();
 
         AppDispatcher.handleViewAction({
             type: ActionTypes.CLICK_CHANNEL,
-            name: chan.name,
             id: chan.id,
             team_id: chan.team_id,
-            total_msg_count: chan.total_msg_count,
-            channelMember,
-            prev: oldChannelId
         });
     }
 
@@ -100,13 +103,12 @@ export async function doFocusPost(channelId, postId, data) {
         type: ActionTypes.RECEIVED_FOCUSED_POST,
         postId,
         channelId,
-        post_list: data
+        post_list: data,
     });
 
     dispatch({
         type: ActionTypes.RECEIVED_FOCUSED_POST,
         data: postId,
-        channelId
     });
 
     const member = getState().entities.channels.myMembers[channelId];
@@ -118,57 +120,44 @@ export async function doFocusPost(channelId, postId, data) {
     getChannelStats(channelId)(dispatch, getState);
 }
 
-export async function emitPostFocusEvent(postId, onSuccess) {
-    loadChannelsForCurrentUser();
-    const {data} = await getPostThread(postId)(dispatch, getState);
-
-    if (data) {
-        const channelId = data.posts[data.order[0]].channel_id;
-        const channel = ChannelStore.getChannelById(channelId);
-        if (channel && channel.type === Constants.DM_CHANNEL) {
-            loadNewDMIfNeeded(channel.id);
-        } else if (channel && channel.type === Constants.GM_CHANNEL) {
-            loadNewGMIfNeeded(channel.id);
-        }
-
-        doFocusPost(channelId, postId, data).then(() => {
-            if (onSuccess) {
-                onSuccess();
-            }
-        });
-    } else {
-        browserHistory.push('/error?type=' + ErrorPageTypes.PERMALINK_NOT_FOUND);
-    }
-}
-
 export function emitCloseRightHandSide() {
-    SearchStore.storeSearchResults(null, false, false);
-    SearchStore.emitSearchChange();
-
-    dispatch({
-        type: ActionTypes.SELECT_POST,
-        postId: '',
-        channelId: ''
-    });
+    dispatch(closeRightHandSide());
 }
 
-export async function emitPostFocusRightHandSideFromSearch(post, isMentionSearch) {
-    await getPostThread(post.id)(dispatch, getState);
+export async function emitPostFocusEvent(postId, returnTo = '') {
+    loadChannelsForCurrentUser();
+    const {data} = await dispatch(getPostThread(postId));
 
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_POST_SELECTED,
-        postId: Utils.getRootId(post),
-        channelId: post.channel_id,
-        from_search: SearchStore.getSearchTerm(),
-        from_flagged_posts: SearchStore.getIsFlaggedPosts(),
-        from_pinned_posts: SearchStore.getIsPinnedPosts()
-    });
+    if (!data) {
+        browserHistory.push(`/error?type=${ErrorPageTypes.PERMALINK_NOT_FOUND}&returnTo=${returnTo}`);
+        return;
+    }
 
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_SEARCH,
-        results: null,
-        is_mention_search: isMentionSearch
-    });
+    const channelId = data.posts[data.order[0]].channel_id;
+    let channel = getState().entities.channels.channels[channelId];
+    const teamId = getCurrentTeamId(getState());
+
+    if (!channel) {
+        const {data: channelData} = await dispatch(getChannel(channelId));
+        if (!channelData) {
+            browserHistory.push(`/error?type=${ErrorPageTypes.PERMALINK_NOT_FOUND}&returnTo=${returnTo}`);
+            return;
+        }
+        channel = channelData;
+    }
+
+    if (channel.team_id && channel.team_id !== teamId) {
+        browserHistory.push(`/error?type=${ErrorPageTypes.PERMALINK_NOT_FOUND}&returnTo=${returnTo}`);
+        return;
+    }
+
+    if (channel && channel.type === Constants.DM_CHANNEL) {
+        loadNewDMIfNeeded(channel.id);
+    } else if (channel && channel.type === Constants.GM_CHANNEL) {
+        loadNewGMIfNeeded(channel.id);
+    }
+
+    await doFocusPost(channelId, postId, data);
 }
 
 export function emitLeaveTeam() {
@@ -178,37 +167,28 @@ export function emitLeaveTeam() {
 export function emitUserPostedEvent(post) {
     AppDispatcher.handleServerAction({
         type: ActionTypes.CREATE_POST,
-        post
+        post,
     });
 }
 
 export function emitUserCommentedEvent(post) {
     AppDispatcher.handleServerAction({
         type: ActionTypes.CREATE_COMMENT,
-        post
+        post,
     });
 }
 
 export function showAccountSettingsModal() {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_ACCOUNT_SETTINGS_MODAL,
-        value: true
+        value: true,
     });
 }
 
 export function toggleShortcutsModal() {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_SHORTCUTS_MODAL,
-        value: true
-    });
-}
-
-export function showDeletePostModal(post, commentCount = 0) {
-    AppDispatcher.handleViewAction({
-        type: ActionTypes.TOGGLE_DELETE_POST_MODAL,
         value: true,
-        post,
-        commentCount
     });
 }
 
@@ -216,7 +196,7 @@ export function showChannelHeaderUpdateModal(channel) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_CHANNEL_HEADER_UPDATE_MODAL,
         value: true,
-        channel
+        channel,
     });
 }
 
@@ -224,7 +204,7 @@ export function showChannelPurposeUpdateModal(channel) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_CHANNEL_PURPOSE_UPDATE_MODAL,
         value: true,
-        channel
+        channel,
     });
 }
 
@@ -232,7 +212,7 @@ export function showChannelNameUpdateModal(channel) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_CHANNEL_NAME_UPDATE_MODAL,
         value: true,
-        channel
+        channel,
     });
 }
 
@@ -240,7 +220,7 @@ export function showGetPostLinkModal(post) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_GET_POST_LINK_MODAL,
         value: true,
-        post
+        post,
     });
 }
 
@@ -248,35 +228,35 @@ export function showGetPublicLinkModal(fileId) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_GET_PUBLIC_LINK_MODAL,
         value: true,
-        fileId
+        fileId,
     });
 }
 
 export function showGetTeamInviteLinkModal() {
     AppDispatcher.handleViewAction({
         type: Constants.ActionTypes.TOGGLE_GET_TEAM_INVITE_LINK_MODAL,
-        value: true
+        value: true,
     });
 }
 
 export function showInviteMemberModal() {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_INVITE_MEMBER_MODAL,
-        value: true
+        value: true,
     });
 }
 
 export function showLeaveTeamModal() {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_LEAVE_TEAM_MODAL,
-        value: true
+        value: true,
     });
 }
 
 export function showLeavePrivateChannelModal(channel) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_LEAVE_PRIVATE_CHANNEL_MODAL,
-        value: channel
+        value: channel,
     });
 }
 
@@ -284,21 +264,21 @@ export function emitSuggestionPretextChanged(suggestionId, pretext) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.SUGGESTION_PRETEXT_CHANGED,
         id: suggestionId,
-        pretext
+        pretext,
     });
 }
 
 export function emitSelectNextSuggestion(suggestionId) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.SUGGESTION_SELECT_NEXT,
-        id: suggestionId
+        id: suggestionId,
     });
 }
 
 export function emitSelectPreviousSuggestion(suggestionId) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.SUGGESTION_SELECT_PREVIOUS,
-        id: suggestionId
+        id: suggestionId,
     });
 }
 
@@ -306,21 +286,21 @@ export function emitCompleteWordSuggestion(suggestionId, term = '') {
     AppDispatcher.handleViewAction({
         type: Constants.ActionTypes.SUGGESTION_COMPLETE_WORD,
         id: suggestionId,
-        term
+        term,
     });
 }
 
 export function emitClearSuggestions(suggestionId) {
     AppDispatcher.handleViewAction({
         type: Constants.ActionTypes.SUGGESTION_CLEAR_SUGGESTIONS,
-        id: suggestionId
+        id: suggestionId,
     });
 }
 
 export function emitPreferenceChangedEvent(preference) {
     AppDispatcher.handleServerAction({
         type: Constants.ActionTypes.RECEIVED_PREFERENCE,
-        preference
+        preference,
     });
 
     if (addedNewDmUser(preference)) {
@@ -331,7 +311,7 @@ export function emitPreferenceChangedEvent(preference) {
 export function emitPreferencesChangedEvent(preferences) {
     AppDispatcher.handleServerAction({
         type: Constants.ActionTypes.RECEIVED_PREFERENCES,
-        preferences
+        preferences,
     });
 
     if (preferences.findIndex(addedNewDmUser) !== -1) {
@@ -346,7 +326,7 @@ function addedNewDmUser(preference) {
 export function emitPreferencesDeletedEvent(preferences) {
     AppDispatcher.handleServerAction({
         type: Constants.ActionTypes.DELETED_PREFERENCES,
-        preferences
+        preferences,
     });
 }
 
@@ -357,12 +337,33 @@ export function sendEphemeralPost(message, channelId, parentId) {
         user_id: '0',
         channel_id: channelId || ChannelStore.getCurrentId(),
         message,
-        type: Constants.PostTypes.EPHEMERAL,
+        type: PostTypes.EPHEMERAL,
         create_at: timestamp,
         update_at: timestamp,
         root_id: parentId,
         parent_id: parentId,
-        props: {}
+        props: {},
+    };
+
+    handleNewPost(post);
+}
+
+export function sendAddToChannelEphemeralPost(user, addedUsername, addedUserId, channelId, postRootId = '', timestamp) {
+    const post = {
+        id: Utils.generateId(),
+        user_id: user.id,
+        channel_id: channelId || ChannelStore.getCurrentId(),
+        message: '',
+        type: PostTypes.EPHEMERAL_ADD_TO_CHANNEL,
+        create_at: timestamp,
+        update_at: timestamp,
+        root_id: postRootId,
+        parent_id: postRootId,
+        props: {
+            username: user.username,
+            addedUsername,
+            addedUserId,
+        },
     };
 
     handleNewPost(post);
@@ -375,7 +376,7 @@ export function newLocalizationSelected(locale) {
         AppDispatcher.handleServerAction({
             type: ActionTypes.RECEIVED_LOCALE,
             locale,
-            translations: en
+            translations: en,
         });
     } else {
         Client4.getTranslations(localeInfo.url).then(
@@ -387,7 +388,7 @@ export function newLocalizationSelected(locale) {
                 AppDispatcher.handleServerAction({
                     type: ActionTypes.RECEIVED_LOCALE,
                     locale,
-                    translations
+                    translations,
                 });
             }
         ).catch(
@@ -407,7 +408,8 @@ export function loadCurrentLocale() {
 }
 
 export function loadDefaultLocale() {
-    let locale = global.window.mm_config.DefaultClientLocale;
+    const config = getConfig(getState());
+    let locale = config.DefaultClientLocale;
 
     if (!I18n.getLanguageInfo(locale)) {
         locale = 'en';
@@ -417,21 +419,24 @@ export function loadDefaultLocale() {
 }
 
 let lastTimeTypingSent = 0;
-export function emitLocalUserTypingEvent(channelId, parentId) {
-    const t = Date.now();
-    const membersInChannel = ChannelStore.getStats(channelId).member_count;
+export function emitLocalUserTypingEvent(channelId, parentPostId) {
+    const userTyping = async (actionDispatch, actionGetState) => {
+        const state = actionGetState();
+        const config = getConfig(state);
+        const t = Date.now();
+        const stats = getCurrentChannelStats(state);
+        const membersInChannel = stats ? stats.member_count : 0;
 
-    if (global.mm_license.IsLicensed === 'true' && global.mm_config.ExperimentalTownSquareIsReadOnly === 'true') {
-        const channel = ChannelStore.getChannelById(channelId);
-        if (channel && ChannelStore.isDefault(channel)) {
-            return;
+        if (((t - lastTimeTypingSent) > config.TimeBetweenUserTypingUpdatesMilliseconds) &&
+            (membersInChannel < config.MaxNotificationsPerChannel) && (config.EnableUserTypingMessages === 'true')) {
+            WebSocketClient.userTyping(channelId, parentPostId);
+            lastTimeTypingSent = t;
         }
-    }
 
-    if (((t - lastTimeTypingSent) > global.window.mm_config.TimeBetweenUserTypingUpdatesMilliseconds) && membersInChannel < global.window.mm_config.MaxNotificationsPerChannel && global.window.mm_config.EnableUserTypingMessages === 'true') {
-        WebSocketClient.userTyping(channelId, parentId);
-        lastTimeTypingSent = t;
-    }
+        return {data: true};
+    };
+
+    return dispatch(userTyping);
 }
 
 export function emitRemoteUserTypingEvent(channelId, userId, postParentId) {
@@ -439,7 +444,7 @@ export function emitRemoteUserTypingEvent(channelId, userId, postParentId) {
         type: Constants.ActionTypes.USER_TYPING,
         channelId,
         userId,
-        postParentId
+        postParentId,
     });
 }
 
@@ -466,87 +471,19 @@ export function clientLogout(redirectTo = '/') {
     stopPeriodicStatusUpdates();
     WebsocketActions.close();
     document.cookie = 'MMUSERID=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    window.location.href = redirectTo;
-}
-
-export function emitSearchMentionsEvent(user) {
-    let terms = '';
-    if (user.notify_props) {
-        const termKeys = UserStore.getMentionKeys(user.id);
-
-        const indexOfChannel = termKeys.indexOf('@channel');
-        if (indexOfChannel !== -1) {
-            termKeys.splice(indexOfChannel, 1);
-        }
-
-        const indexOfAll = termKeys.indexOf('@all');
-        if (indexOfAll !== -1) {
-            termKeys.splice(indexOfAll, 1);
-        }
-
-        const indexOfHere = termKeys.indexOf('@here');
-        if (indexOfHere !== -1) {
-            termKeys.splice(indexOfHere, 1);
-        }
-
-        terms = termKeys.join(' ');
-    }
-
-    trackEvent('api', 'api_posts_search_mention');
-
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_SEARCH_TERM,
-        term: terms,
-        do_search: true,
-        is_mention_search: true
-    });
-}
-
-export function toggleSideBarAction(visible) {
-    if (!visible) {
-        //Array of actions resolving in the closing of the sidebar
-        AppDispatcher.handleServerAction({
-            type: ActionTypes.RECEIVED_SEARCH,
-            results: null
-        });
-
-        AppDispatcher.handleServerAction({
-            type: ActionTypes.RECEIVED_SEARCH_TERM,
-            term: null,
-            do_search: false,
-            is_mention_search: false
-        });
-
-        AppDispatcher.handleServerAction({
-            type: ActionTypes.RECEIVED_POST_SELECTED,
-            postId: null,
-            channelId: null
-        });
-    }
+    browserHistory.push(redirectTo);
 }
 
 export function toggleSideBarRightMenuAction() {
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_SEARCH,
-        results: null
-    });
-
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_POST_SELECTED,
-        postId: null,
-        channelId: null
-    });
-
-    document.querySelector('.app__body .inner-wrap').classList.remove('move--right', 'move--left', 'move--left-small');
-    document.querySelector('.app__body .sidebar--left').classList.remove('move--right');
-    document.querySelector('.app__body .sidebar--right').classList.remove('move--left');
-    document.querySelector('.app__body .sidebar--menu').classList.remove('move--left');
+    dispatch(closeRightHandSide());
+    dispatch(closeLhs());
+    dispatch(closeRhsMenu());
 }
 
 export function emitBrowserFocus(focus) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.BROWSER_CHANGE_FOCUS,
-        focus
+        focus,
     });
 }
 
@@ -569,35 +506,51 @@ export async function redirectUserToDefaultTeam() {
         }
 
         if (myTeams.length > 0) {
-            myTeams = myTeams.sort(sortTeamsByDisplayName);
-            teamId = myTeams[0].id;
+            myTeams = filterAndSortTeamsByDisplayName(myTeams);
+            if (myTeams && myTeams[0]) {
+                teamId = myTeams[0].id;
+            }
         }
     }
 
-    if (teams[teamId]) {
+    const team = teams[teamId];
+    if (team) {
         const channelId = BrowserStore.getGlobalItem(teamId);
         const channel = ChannelStore.getChannelById(channelId);
-        if (channel) {
-            redirect(teams[teamId].name, channel);
+        let channelName = Constants.DEFAULT_CHANNEL;
+        if (channel && channel.team_id === team.id) {
+            dispatch(selectChannel(channel.id));
+            channelName = channel.name;
         } else if (channelId) {
             const {data} = await getChannelAndMyMember(channelId)(dispatch, getState);
             if (data) {
-                redirect(teams[teamId].name, data.channel.name);
-            } else {
-                redirect(teams[teamId].name, 'town-square');
+                dispatch(selectChannel(channelId));
+                channelName = data.channel.name;
             }
         } else {
-            redirect(teams[teamId].name, 'town-square');
+            const {data} = await dispatch(getChannelByNameAndTeamName(team.name, channelName));
+            if (data) {
+                dispatch(selectChannel(data.id));
+            }
         }
+
+        redirect(team.name, channelName);
     } else {
         browserHistory.push('/select_team');
     }
 }
 
-export function postListScrollChange(forceScrollToBottom = false) {
+export const postListScrollChange = debounce(() => {
     AppDispatcher.handleViewAction({
         type: EventTypes.POST_LIST_SCROLL_CHANGE,
-        value: forceScrollToBottom
+        value: false,
+    });
+});
+
+export function postListScrollChangeToBottom() {
+    AppDispatcher.handleViewAction({
+        type: EventTypes.POST_LIST_SCROLL_CHANGE,
+        value: true,
     });
 }
 
@@ -605,7 +558,7 @@ export function emitPopoverMentionKeyClick(isRHS, mentionKey) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.POPOVER_MENTION_KEY_CLICK,
         isRHS,
-        mentionKey
+        mentionKey,
     });
 }
 
@@ -613,8 +566,9 @@ let serverVersion = '';
 
 export function reloadIfServerVersionChanged() {
     const newServerVersion = Client4.getServerVersion();
-    if (serverVersion && serverVersion !== newServerVersion) {
-        console.log('Detected version update refreshing the page'); //eslint-disable-line no-console
+
+    if (serverVersion && !equalServerVersions(serverVersion, newServerVersion)) {
+        console.log(`Detected version update from ${serverVersion} to ${newServerVersion}; refreshing the page`); //eslint-disable-line no-console
         window.location.reload(true);
     }
 

@@ -1,27 +1,27 @@
-.PHONY: build test run clean stop check-style run-unit emojis
+.PHONY: build test run clean stop check-style run-unit emojis help
 
 BUILD_SERVER_DIR = ../mattermost-server
 EMOJI_TOOLS_DIR = ./build/emoji
 
-check-style: .yarninstall
+check-style: .npminstall ## Checks JS file for ESLint confirmity
 	@echo Checking for style guide compliance
 
-	yarn run check
+	npm run check
 
-test: .yarninstall
+test: .npminstall ## Runs tests
 	@echo Running jest unit/component testing
 
-	yarn run test
+	npm run test
 
-.yarninstall: package.json
-	@echo Getting dependencies using yarn
+.npminstall: package.json package-lock.json
+	@echo Getting dependencies using npm
 
-	yarn install
+	npm install
 	cd node_modules/mattermost-redux; npm run build
 
 	touch $@
 
-package: build
+package: build ## Packages app
 	@echo Packaging webapp
 
 	mkdir tmp
@@ -30,25 +30,24 @@ package: build
 	mv tmp/client dist
 	rmdir tmp
 
-
-build: .yarninstall
+build: .npminstall ## Builds the app
 	@echo Building mattermost Webapp
 
 	rm -rf dist
 
-	yarn run build
+	npm run build
 
-run: .yarninstall
+run: .npminstall ## Runs app
 	@echo Running mattermost Webapp for development
 
-	yarn run run &
+	npm run run &
 
-run-fullmap: .yarninstall
+run-fullmap: .npminstall ## Runs the app with the JS mapped to source (good for debugger)
 	@echo FULL SOURCE MAP Running mattermost Webapp for development FULL SOURCE MAP
 
-	yarn run run-fullmap &
+	npm run run-fullmap &
 
-stop:
+stop: ## Stops webpack
 	@echo Stopping changes watching
 
 ifeq ($(OS),Windows_NT)
@@ -60,16 +59,20 @@ else
 	done
 endif
 
-clean:
-	@echo Cleaning Webapp
+restart: | stop run ## Restarts the app
 
-	yarn cache clean
+clean: ## Clears cached; deletes node_modules and dist directories
+	@echo Cleaning Webapp
 
 	rm -rf dist
 	rm -rf node_modules
-	rm -f .yarninstall
+	rm -f .npminstall
 
-emojis:
+emojis: ## Creates emoji JSX file and extracts emoji images from the system font
 	gem install bundler
 	bundle install --gemfile=$(EMOJI_TOOLS_DIR)/Gemfile
 	BUNDLE_GEMFILE=$(EMOJI_TOOLS_DIR)/Gemfile bundle exec $(EMOJI_TOOLS_DIR)/make-emojis
+
+## Help documentatin à la https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

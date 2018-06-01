@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import EventEmitter from 'events';
 
@@ -7,9 +7,7 @@ import {PreferenceTypes} from 'mattermost-redux/action_types';
 import * as Selectors from 'mattermost-redux/selectors/entities/preferences';
 
 import store from 'stores/redux_store.jsx';
-
 import Constants from 'utils/constants.jsx';
-
 import AppDispatcher from '../dispatcher/app_dispatcher.jsx';
 
 const ActionTypes = Constants.ActionTypes;
@@ -31,15 +29,16 @@ class PreferenceStore extends EventEmitter {
 
         store.subscribe(() => {
             const newEntities = Selectors.getMyPreferences(store.getState());
-            if (this.entities !== newEntities) {
+            const entities = this.entities;
+            this.entities = newEntities;
+
+            if (entities !== newEntities) {
                 this.preferences = new Map();
                 Object.keys(newEntities).forEach((key) => {
                     this.preferences.set(key, newEntities[key].value);
                 });
                 this.emitChange();
             }
-
-            this.entities = newEntities;
         });
 
         this.setMaxListeners(600);
@@ -106,21 +105,21 @@ class PreferenceStore extends EventEmitter {
     setPreference(category, name, value) {
         store.dispatch({
             type: PreferenceTypes.RECEIVED_PREFERENCES,
-            data: [{category, name, value}]
+            data: [{category, name, value}],
         });
     }
 
     setPreferencesFromServer(newPreferences) {
         store.dispatch({
             type: PreferenceTypes.RECEIVED_PREFERENCES,
-            data: newPreferences
+            data: newPreferences,
         });
     }
 
     deletePreference(preference) {
         store.dispatch({
             type: PreferenceTypes.DELETED_PREFERENCES,
-            data: [preference]
+            data: [preference],
         });
     }
 
@@ -136,22 +135,8 @@ class PreferenceStore extends EventEmitter {
         this.removeListener(CHANGE_EVENT, callback);
     }
 
-    getTheme(teamId) {
-        if (this.preferences.has(this.getKey(Constants.Preferences.CATEGORY_THEME, teamId))) {
-            return this.getObject(Constants.Preferences.CATEGORY_THEME, teamId);
-        }
-
-        if (this.preferences.has(this.getKey(Constants.Preferences.CATEGORY_THEME, ''))) {
-            return this.getObject(Constants.Preferences.CATEGORY_THEME, '');
-        }
-
-        for (const k in Constants.THEMES) {
-            if (Constants.THEMES.hasOwnProperty(k) && k === global.mm_config.DefaultTheme) {
-                return Constants.THEMES[k];
-            }
-        }
-
-        return Constants.THEMES.default;
+    getTheme() {
+        return Selectors.getTheme(store.getState());
     }
 
     handleEventPayload(payload) {

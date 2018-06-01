@@ -1,8 +1,7 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import PropTypes from 'prop-types';
 import React from 'react';
 import ReactDOM from 'react-dom';
@@ -10,7 +9,7 @@ import ReactDOM from 'react-dom';
 import Constants from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
 
-import FileInfoPreview from './file_info_preview.jsx';
+import FileInfoPreview from 'components/file_info_preview';
 
 export default class AudioVideoPreview extends React.PureComponent {
     static propTypes = {
@@ -23,7 +22,7 @@ export default class AudioVideoPreview extends React.PureComponent {
         /**
         *  URL of pdf file to output and compare to update props url
         */
-        fileUrl: PropTypes.string.isRequired
+        fileUrl: PropTypes.string.isRequired,
     }
 
     constructor(props) {
@@ -35,11 +34,11 @@ export default class AudioVideoPreview extends React.PureComponent {
         this.stop = this.stop.bind(this);
 
         this.state = {
-            canPlay: true
+            canPlay: true,
         };
     }
 
-    componentWillMount() {
+    UNSAFE_componentWillMount() { // eslint-disable-line camelcase
         this.handleFileInfoChanged(this.props.fileInfo);
     }
 
@@ -49,7 +48,7 @@ export default class AudioVideoPreview extends React.PureComponent {
         }
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         if (this.props.fileUrl !== nextProps.fileUrl) {
             this.handleFileInfoChanged(nextProps.fileInfo);
         }
@@ -64,7 +63,7 @@ export default class AudioVideoPreview extends React.PureComponent {
         const canPlayType = video.canPlayType(fileInfo.mime_type);
 
         this.setState({
-            canPlay: canPlayType === 'probably' || canPlayType === 'maybe'
+            canPlay: canPlayType === 'probably' || canPlayType === 'maybe',
         });
     }
 
@@ -76,7 +75,7 @@ export default class AudioVideoPreview extends React.PureComponent {
 
     handleLoadError() {
         this.setState({
-            canPlay: false
+            canPlay: false,
         });
     }
 

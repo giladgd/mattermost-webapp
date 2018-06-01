@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -7,7 +7,6 @@ import ReactDOM from 'react-dom';
 import {FormattedMessage} from 'react-intl';
 
 import {oauthToEmail} from 'actions/admin_actions.jsx';
-
 import Constants from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
 
@@ -31,11 +30,9 @@ export default class OAuthToEmail extends React.Component {
             return;
         }
 
-        const passwordErr = Utils.isValidPassword(password);
-        if (passwordErr !== '') {
-            this.setState({
-                error: passwordErr
-            });
+        const {valid, error} = Utils.isValidPassword(password, this.props.passwordConfig);
+        if (!valid && error) {
+            this.setState({error});
             return;
         }
 
@@ -79,7 +76,7 @@ export default class OAuthToEmail extends React.Component {
                         id='claim.oauth_to_email.title'
                         defaultMessage='Switch {type} Account to Email'
                         values={{
-                            type: uiType
+                            type: uiType,
                         }}
                     />
                 </h3>
@@ -95,7 +92,7 @@ export default class OAuthToEmail extends React.Component {
                             id='claim.oauth_to_email.enterNewPwd'
                             defaultMessage='Enter a new password for your {site} email account'
                             values={{
-                                site: global.window.mm_config.SiteName
+                                site: this.props.siteName,
                             }}
                         />
                     </p>
@@ -128,7 +125,7 @@ export default class OAuthToEmail extends React.Component {
                             id='claim.oauth_to_email.switchTo'
                             defaultMessage='Switch {type} to email and password'
                             values={{
-                                type: uiType
+                                type: uiType,
                             }}
                         />
                     </button>
@@ -138,9 +135,9 @@ export default class OAuthToEmail extends React.Component {
     }
 }
 
-OAuthToEmail.defaultProps = {
-};
 OAuthToEmail.propTypes = {
     currentType: PropTypes.string,
-    email: PropTypes.string
+    email: PropTypes.string,
+    siteName: PropTypes.string,
+    passwordConfig: PropTypes.object,
 };

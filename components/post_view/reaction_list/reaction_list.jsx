@@ -1,14 +1,18 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
+import {OverlayTrigger, Tooltip} from 'react-bootstrap';
+import {FormattedMessage} from 'react-intl';
+import Permissions from 'mattermost-redux/constants/permissions';
 
 import {postListScrollChange} from 'actions/global_actions.jsx';
 import {emitEmojiPosted} from 'actions/post_actions.jsx';
-
+import Constants from 'utils/constants.jsx';
 import Reaction from 'components/post_view/reaction';
 import EmojiPickerOverlay from 'components/emoji_picker/emoji_picker_overlay.jsx';
+import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
 
 const DEFAULT_EMOJI_PICKER_RIGHT_OFFSET = 15;
 const EMOJI_PICKER_WIDTH_OFFSET = 260;
@@ -21,6 +25,11 @@ export default class ReactionListView extends React.PureComponent {
          */
         post: PropTypes.object.isRequired,
 
+        /*
+         * The id of the team which belongs the post
+         */
+        teamId: PropTypes.string,
+
         /**
          * The reactions to render
          */
@@ -30,6 +39,12 @@ export default class ReactionListView extends React.PureComponent {
          * The emojis for the different reactions
          */
         emojis: PropTypes.object.isRequired,
+
+        /**
+         * Whether to show the emoji picker.
+         */
+        enableEmojiPicker: PropTypes.bool.isRequired,
+
         actions: PropTypes.shape({
 
             /**
@@ -40,15 +55,15 @@ export default class ReactionListView extends React.PureComponent {
             /**
              * Function to add a reaction to the post
              */
-            addReaction: PropTypes.func.isRequired
-        })
+            addReaction: PropTypes.func.isRequired,
+        }),
     }
 
     constructor(props) {
         super(props);
 
         this.state = {
-            showEmojiPicker: false
+            showEmojiPicker: false,
         };
     }
 
@@ -127,7 +142,16 @@ export default class ReactionListView extends React.PureComponent {
         }
 
         let emojiPicker = null;
-        if (window.mm_config.EnableEmojiPicker === 'true') {
+        if (this.props.enableEmojiPicker) {
+            const addReactionTooltip = (
+                <Tooltip id='addReactionTooltip'>
+                    <FormattedMessage
+                        id='reaction_list.addReactionTooltip'
+                        defaultMessage='Add reaction'
+                    />
+                </Tooltip>
+            );
+
             emojiPicker = (
                 <span className='emoji-picker__container'>
                     <EmojiPickerOverlay
@@ -138,17 +162,30 @@ export default class ReactionListView extends React.PureComponent {
                         rightOffset={rightOffset}
                         topOffset={-5}
                     />
-                    <div
-                        className='post-reaction'
-                        onClick={this.toggleEmojiPicker}
+                    <OverlayTrigger
+                        trigger={['hover', 'focus']}
+                        placement='top'
+                        delayShow={Constants.OVERLAY_TIME_DELAY}
+                        overlay={addReactionTooltip}
                     >
-                        <span
-                            className='post-reaction__add'
-                            ref='addReactionButton'
+                        <ChannelPermissionGate
+                            channelId={this.props.post.channel_id}
+                            teamId={this.props.teamId}
+                            permissions={[Permissions.ADD_REACTION]}
                         >
-                            {'+'}
-                        </span>
-                    </div>
+                            <div
+                                className='post-reaction'
+                                onClick={this.toggleEmojiPicker}
+                            >
+                                <span
+                                    className='post-reaction__add'
+                                    ref='addReactionButton'
+                                >
+                                    {'+'}
+                                </span>
+                            </div>
+                        </ChannelPermissionGate>
+                    </OverlayTrigger>
                 </span>
             );
         }

@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {getStatusesByIds} from 'mattermost-redux/actions/users';
 
@@ -8,7 +8,6 @@ import PostStore from 'stores/post_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
 import store from 'stores/redux_store.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import {Constants, Preferences} from 'utils/constants.jsx';
 
 const dispatch = store.dispatch;
@@ -92,10 +91,9 @@ export function loadStatusesForProfilesMap(users) {
 
     const statusesToLoad = [];
     for (const userId in users) {
-        if (!users.hasOwnProperty(userId)) {
-            return;
+        if ({}.hasOwnProperty.call(users, userId)) {
+            statusesToLoad.push(userId);
         }
-        statusesToLoad.push(userId);
     }
 
     loadStatusesByIds(statusesToLoad);

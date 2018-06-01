@@ -1,14 +1,15 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 // EXPERIMENTAL - SUBJECT TO CHANGE
 
 import {Client4} from 'mattermost-redux/client';
 
 import store from 'stores/redux_store.jsx';
-
 import {ActionTypes} from 'utils/constants.jsx';
+import messageHtmlToComponent from 'utils/message_html_to_component';
 import {getSiteURL} from 'utils/url.jsx';
+import {formatText} from 'utils/text_formatting.jsx';
 
 window.plugins = {};
 
@@ -18,8 +19,9 @@ window['react-dom'] = require('react-dom');
 window.redux = require('redux');
 window['react-redux'] = require('react-redux');
 window['react-bootstrap'] = require('react-bootstrap');
+window['post-utils'] = {formatText, messageHtmlToComponent};
 
-export function registerComponents(id, components = {}, postTypes = {}) {
+export function registerComponents(id, components = {}, postTypes = {}, mainMenuActions = []) {
     const wrappedComponents = {};
     Object.keys(components).forEach((name) => {
         wrappedComponents[name] = {component: components[name], id};
@@ -27,7 +29,7 @@ export function registerComponents(id, components = {}, postTypes = {}) {
 
     store.dispatch({
         type: ActionTypes.RECEIVED_PLUGIN_COMPONENTS,
-        data: wrappedComponents
+        data: wrappedComponents,
     });
 
     const wrappedPostTypes = {};
@@ -37,7 +39,14 @@ export function registerComponents(id, components = {}, postTypes = {}) {
 
     store.dispatch({
         type: ActionTypes.RECEIVED_PLUGIN_POST_TYPES,
-        data: wrappedPostTypes
+        data: wrappedPostTypes,
+    });
+
+    const wrappedMainMenuActions = mainMenuActions.map((action) => ({id, ...action}));
+
+    store.dispatch({
+        type: ActionTypes.RECEIVED_PLUGIN_MENU_ACTIONS,
+        data: wrappedMainMenuActions,
     });
 }
 
@@ -78,13 +87,6 @@ export function getPlugins() {
 
 export function loadPlugin(manifest) {
     function onLoad() {
-        // Add the plugin's js to the page
-        const script = document.createElement('script');
-        script.id = 'plugin_' + manifest.id;
-        script.type = 'text/javascript';
-        script.text = this.responseText;
-        document.getElementsByTagName('head')[0].appendChild(script);
-
         // Initialize the plugin
         console.log('Registering ' + manifest.id + ' plugin...'); //eslint-disable-line no-console
         const plugin = window.plugins[manifest.id];
@@ -92,18 +94,18 @@ export function loadPlugin(manifest) {
         console.log('...done'); //eslint-disable-line no-console
     }
 
-    // Fetch the plugin's bundled js
-    const xhrObj = new XMLHttpRequest();
-
     // Backwards compatibility for old plugins
     let bundlePath = manifest.webapp.bundle_path;
     if (bundlePath.includes('/static/') && !bundlePath.includes('/static/plugins/')) {
         bundlePath = bundlePath.replace('/static/', '/static/plugins/');
     }
 
-    xhrObj.open('GET', getSiteURL() + bundlePath, true);
-    xhrObj.addEventListener('load', onLoad);
-    xhrObj.send('');
+    const script = document.createElement('script');
+    script.id = 'plugin_' + manifest.id;
+    script.type = 'text/javascript';
+    script.src = getSiteURL() + bundlePath;
+    script.onload = onLoad;
+    document.getElementsByTagName('head')[0].appendChild(script);
 }
 
 export function removePlugin(manifest) {

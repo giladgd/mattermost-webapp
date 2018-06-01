@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -8,6 +8,7 @@ import ReactSelect from 'react-select';
 
 import Constants from 'utils/constants.jsx';
 import {localizeMessage} from 'utils/utils.jsx';
+import SaveButton from 'components/save_button.jsx';
 
 import MultiSelectList from './multiselect_list.jsx';
 
@@ -20,7 +21,7 @@ export default class MultiSelect extends React.Component {
         this.selected = null;
 
         this.state = {
-            page: 0
+            page: 0,
         };
     }
 
@@ -79,13 +80,8 @@ export default class MultiSelect extends React.Component {
         this.refs.select.focus();
 
         const submitImmediatelyOn = this.props.submitImmediatelyOn;
-        if (submitImmediatelyOn) {
-            for (let i = 0; i < submitImmediatelyOn.length; i++) {
-                if (submitImmediatelyOn[i] === value.id) {
-                    this.props.handleSubmit([value]);
-                    return;
-                }
-            }
+        if (submitImmediatelyOn && submitImmediatelyOn(value)) {
+            this.props.handleSubmit([value]);
         }
     }
 
@@ -101,16 +97,16 @@ export default class MultiSelect extends React.Component {
     }
 
     onInputKeyDown = (e) => {
-        switch (e.keyCode) {
-        case KeyCodes.ENTER:
+        switch (e.key) {
+        case KeyCodes.ENTER[0]:
             e.preventDefault();
             break;
         }
     }
 
     handleEnterPress = (e) => {
-        switch (e.keyCode) {
-        case KeyCodes.ENTER:
+        switch (e.key) {
+        case KeyCodes.ENTER[0]:
             if (this.selected == null) {
                 this.props.handleSubmit();
                 return;
@@ -120,10 +116,19 @@ export default class MultiSelect extends React.Component {
         }
     }
 
+    handleOnClick = (e) => {
+        e.preventDefault();
+        this.props.handleSubmit();
+    }
+
     onChange = (values) => {
         if (values.length < this.props.values.length) {
             this.props.handleDelete(values);
         }
+    }
+
+    handleRender = () => {
+        return null;
     }
 
     render() {
@@ -139,7 +144,7 @@ export default class MultiSelect extends React.Component {
                     id='multiselect.numRemaining'
                     defaultMessage='You can add {num, number} more. '
                     values={{
-                        num: this.props.maxValues - this.props.values.length
+                        num: this.props.maxValues - this.props.values.length,
                     }}
                 />
             );
@@ -186,33 +191,34 @@ export default class MultiSelect extends React.Component {
             const pageStart = this.state.page * this.props.perPage;
             const pageEnd = pageStart + this.props.perPage;
             optionsToDisplay = options.slice(pageStart, pageEnd);
+            if (!this.props.loading) {
+                if (options.length > pageEnd) {
+                    nextButton = (
+                        <button
+                            className='btn btn-default filter-control filter-control__next'
+                            onClick={this.nextPage}
+                        >
+                            <FormattedMessage
+                                id='filtered_user_list.next'
+                                defaultMessage='Next'
+                            />
+                        </button>
+                    );
+                }
 
-            if (options.length > pageEnd) {
-                nextButton = (
-                    <button
-                        className='btn btn-default filter-control filter-control__next'
-                        onClick={this.nextPage}
-                    >
-                        <FormattedMessage
-                            id='filtered_user_list.next'
-                            defaultMessage='Next'
-                        />
-                    </button>
-                );
-            }
-
-            if (this.state.page > 0) {
-                previousButton = (
-                    <button
-                        className='btn btn-default filter-control filter-control__prev'
-                        onClick={this.prevPage}
-                    >
-                        <FormattedMessage
-                            id='filtered_user_list.prev'
-                            defaultMessage='Previous'
-                        />
-                    </button>
-                );
+                if (this.state.page > 0) {
+                    previousButton = (
+                        <button
+                            className='btn btn-default filter-control filter-control__prev'
+                            onClick={this.prevPage}
+                        >
+                            <FormattedMessage
+                                id='filtered_user_list.prev'
+                                defaultMessage='Previous'
+                            />
+                        </button>
+                    );
+                }
             }
         } else {
             optionsToDisplay = options;
@@ -235,21 +241,19 @@ export default class MultiSelect extends React.Component {
                             onCloseResetsInput={false}
                             onChange={this.onChange}
                             value={this.props.values}
+                            valueKey={this.props.valueKey}
                             valueRenderer={this.props.valueRenderer}
-                            menuRenderer={() => null}
-                            arrowRenderer={() => null}
+                            menuRenderer={this.handleRender}
+                            arrowRenderer={this.handleRender}
                             noResultsText={null}
                             placeholder={localizeMessage('multiselect.placeholder', 'Search and add members')}
                         />
-                        <button
-                            className='btn btn-primary btn-sm'
-                            onClick={(e) => {
-                                e.preventDefault();
-                                this.props.handleSubmit();
-                            }}
-                        >
-                            {buttonSubmitText}
-                        </button>
+                        <SaveButton
+                            saving={this.props.saving}
+                            disabled={this.props.saving}
+                            onClick={this.handleOnClick}
+                            defaultMessage={buttonSubmitText}
+                        />
                     </div>
                     <div className='multi-select__help'>
                         {numRemainingText}
@@ -265,6 +269,7 @@ export default class MultiSelect extends React.Component {
                     onPageChange={this.props.handlePageChange}
                     onAdd={this.onAdd}
                     onSelect={this.onSelect}
+                    loading={this.props.loading}
                 />
                 <div className='filter-controls'>
                     {previousButton}
@@ -279,6 +284,7 @@ MultiSelect.propTypes = {
     options: PropTypes.arrayOf(PropTypes.object),
     optionRenderer: PropTypes.func,
     values: PropTypes.arrayOf(PropTypes.object),
+    valueKey: PropTypes.string,
     valueRenderer: PropTypes.func,
     handleInput: PropTypes.func,
     handleDelete: PropTypes.func,
@@ -290,5 +296,7 @@ MultiSelect.propTypes = {
     maxValues: PropTypes.number,
     numRemainingText: PropTypes.node,
     buttonSubmitText: PropTypes.node,
-    submitImmediatelyOn: PropTypes.arrayOf(PropTypes.string)
+    submitImmediatelyOn: PropTypes.func,
+    saving: PropTypes.bool,
+    loading: PropTypes.bool,
 };

@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import * as Flux from 'flux';
 
@@ -15,7 +15,7 @@ const AppDispatcher = Object.assign(new Flux.Dispatcher(), {
 
         var payload = {
             source: PayloadSources.SERVER_ACTION,
-            action
+            action,
         };
         this.dispatch(payload);
     },
@@ -27,10 +27,10 @@ const AppDispatcher = Object.assign(new Flux.Dispatcher(), {
 
         var payload = {
             source: PayloadSources.VIEW_ACTION,
-            action
+            action,
         };
         this.dispatch(payload);
-    }
+    },
 });
 
 export default AppDispatcher;

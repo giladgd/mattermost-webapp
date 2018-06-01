@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -21,7 +21,7 @@ export default class StatisticCount extends React.PureComponent {
         /*
          * Data count
          */
-        count: PropTypes.number
+        count: PropTypes.number,
     }
 
     render() {
@@ -39,7 +39,7 @@ export default class StatisticCount extends React.PureComponent {
                         {this.props.title}
                         <i className={'fa ' + this.props.icon}/>
                     </div>
-                    <div className='content'>{this.props.count == null ? loading : this.props.count}</div>
+                    <div className='content'>{isNaN(this.props.count) ? loading : this.props.count}</div>
                 </div>
             </div>
         );

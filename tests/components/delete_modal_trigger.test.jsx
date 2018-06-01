@@ -1,12 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
-
 import {shallow} from 'enzyme';
 
 import Constants from 'utils/constants.jsx';
-
 import DeleteModalTrigger from 'components/delete_modal_trigger.jsx';
 import ConfirmModal from 'components/confirm_modal.jsx';
 
@@ -88,7 +86,7 @@ describe('components/DeleteModalTrigger', () => {
             />
         );
 
-        wrapper.find(ConfirmModal).first().props().onKeyDown({keyCode: Constants.KeyCodes.ENTER});
+        wrapper.find(ConfirmModal).first().props().onKeyDown({key: Constants.KeyCodes.ENTER[0]});
         expect(onDelete).toHaveBeenCalledTimes(1);
     });
 
@@ -103,7 +101,7 @@ describe('components/DeleteModalTrigger', () => {
             />
         );
 
-        wrapper.find(ConfirmModal).first().props().onKeyDown({keyCode: Constants.KeyCodes.TAB});
+        wrapper.find(ConfirmModal).first().props().onKeyDown({key: Constants.KeyCodes.TAB[0]});
         expect(onDelete).not.toHaveBeenCalled();
     });
 
@@ -150,7 +148,7 @@ describe('components/DeleteModalTrigger', () => {
         const wrapper = shallow(
             <ChildModal onDelete={onDelete}/>
         );
-        const evt = {keyCode: Constants.KeyCodes.ENTER};
+        const evt = {key: Constants.KeyCodes.ENTER[0]};
         const instance = wrapper.instance();
         instance.handleConfirm = jest.fn();
 

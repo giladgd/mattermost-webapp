@@ -1,18 +1,34 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
-
 import {shallow} from 'enzyme';
 
 import NotLoggedIn from 'components/header_footer_template/header_footer_template.jsx';
 
 describe('components/HeaderFooterTemplate', () => {
+    const RealDate = Date;
+
+    function mockDate(date) {
+        global.Date = class extends RealDate {
+            constructor() {
+                super();
+                return new RealDate(date);
+            }
+        };
+    }
+
     beforeEach(() => {
+        mockDate('2017-06-01');
+
         const elm = document.createElement('div');
         elm.setAttribute('id', 'root');
         document.body.appendChild(elm);
         document.body.classList.remove('sticky');
+    });
+
+    afterEach(() => {
+        global.Date = RealDate;
     });
 
     test('should match snapshot without children', () => {
@@ -66,7 +82,7 @@ describe('components/HeaderFooterTemplate', () => {
                     HelpLink: 'http://testhelplink',
                     TermsOfServiceLink: 'http://testtermsofservicelink',
                     PrivacyPolicyLink: 'http://testprivacypolicylink',
-                    AboutLink: 'http://testaboutlink'
+                    AboutLink: 'http://testaboutlink',
                 }}
             />
         );

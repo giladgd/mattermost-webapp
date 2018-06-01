@@ -27,13 +27,19 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
         }
       />
       <TextSetting
-        helpText="This is some help text for the text field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the text field.
+          </span>
+        }
         id="settinga"
-        key="testplugin_plugin_text_settinga"
+        key="testplugin_text_settinga"
         label="Setting One"
         maxLength={null}
         onChange={[Function]}
         placeholder="e.g. some setting"
+        setByEnv={false}
         type="input"
         value="setting_default"
       />
@@ -46,11 +52,16 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
             values={Object {}}
           />
         }
-        helpText="This is some help text for the bool field."
+        helpText={
+          <span>
+            This is some help text for the bool field.
+          </span>
+        }
         id="settingb"
-        key="testplugin_plugin_bool_settingb"
+        key="testplugin_bool_settingb"
         label="Setting Two"
         onChange={[Function]}
+        setByEnv={false}
         trueText={
           <FormattedMessage
             defaultMessage="true"
@@ -61,12 +72,18 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
         value={true}
       />
       <DropdownSetting
-        helpText="This is some help text for the dropdown field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the dropdown field.
+          </span>
+        }
         id="settingc"
         isDisabled={false}
-        key="testplugin_plugin_dropdown_settingc"
+        key="testplugin_dropdown_settingc"
         label="Setting Three"
         onChange={[Function]}
+        setByEnv={false}
         value="option1"
         values={
           Array [
@@ -86,12 +103,17 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
         }
       />
       <RadioSetting
-        helpText="This is some help text for the radio field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the radio field.
+          </span>
+        }
         id="settingd"
-        isDisabled={false}
-        key="testplugin_plugin_radio_settingd"
+        key="testplugin_radio_settingd"
         label="Setting Four"
         onChange={[Function]}
+        setByEnv={false}
         value="option2"
         values={
           Array [
@@ -112,9 +134,13 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
       />
       <GeneratedSetting
         disabled={false}
-        helpText="This is some help text for the generated field."
+        helpText={
+          <span>
+            This is some help text for the generated field.
+          </span>
+        }
         id="settinge"
-        key="testplugin_plugin_generated_settinge"
+        key="testplugin_generated_settinge"
         label="Setting Five"
         onChange={[Function]}
         placeholder="e.g. 47KyfOxtk5+ovi1MDHFyzMDHIA6esMWb"
@@ -126,12 +152,18 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
             values={Object {}}
           />
         }
+        setByEnv={false}
         value=""
       />
       <UserAutocompleteSetting
-        helpText="This is some help text for the user autocomplete field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the user autocomplete field.
+          </span>
+        }
         id="settingf"
-        key="testplugin_plugin_userautocomplete_settingf"
+        key="testplugin_userautocomplete_settingf"
         label="Setting Six"
         onChange={[Function]}
         placeholder="Type a username here"
@@ -148,27 +180,40 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
       />
     </SettingsGroup>
     <div
-      className="form-group"
+      className="admin-console-save"
     >
-      <FormError
-        error={null}
-        errors={Array []}
+      <SaveButton
+        btnClass="btn-primary"
+        defaultMessage="Save"
+        disabled={true}
+        extraClasses=""
+        onClick={[Function]}
+        saving={false}
+        savingMessage="Saving Config..."
       />
-    </div>
-    <div
-      className="form-group"
-    >
       <div
-        className="col-sm-12"
+        className="error-message"
+        onMouseOut={[Function]}
+        onMouseOver={[Function]}
       >
-        <SaveButton
-          defaultMessage="Saving"
-          disabled={true}
-          onClick={[Function]}
-          saving={false}
-          savingMessageId="admin.saving"
+        <FormError
+          error={null}
+          errors={Array []}
         />
       </div>
+      <Overlay
+        animation={[Function]}
+        delayShow={400}
+        placement="top"
+        rootClose={false}
+        show={false}
+      >
+        <Tooltip
+          bsClass="tooltip"
+          id="error-tooltip"
+          placement="right"
+        />
+      </Overlay>
     </div>
   </form>
 </div>
@@ -192,27 +237,40 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
       show={true}
     />
     <div
-      className="form-group"
+      className="admin-console-save"
     >
-      <FormError
-        error={null}
-        errors={Array []}
+      <SaveButton
+        btnClass="btn-primary"
+        defaultMessage="Save"
+        disabled={true}
+        extraClasses=""
+        onClick={[Function]}
+        saving={false}
+        savingMessage="Saving Config..."
       />
-    </div>
-    <div
-      className="form-group"
-    >
       <div
-        className="col-sm-12"
+        className="error-message"
+        onMouseOut={[Function]}
+        onMouseOver={[Function]}
       >
-        <SaveButton
-          defaultMessage="Saving"
-          disabled={true}
-          onClick={[Function]}
-          saving={false}
-          savingMessageId="admin.saving"
+        <FormError
+          error={null}
+          errors={Array []}
         />
       </div>
+      <Overlay
+        animation={[Function]}
+        delayShow={400}
+        placement="top"
+        rootClose={false}
+        show={false}
+      >
+        <Tooltip
+          bsClass="tooltip"
+          id="error-tooltip"
+          placement="right"
+        />
+      </Overlay>
     </div>
   </form>
 </div>
@@ -245,13 +303,19 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
         }
       />
       <TextSetting
-        helpText="This is some help text for the text field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the text field.
+          </span>
+        }
         id="settinga"
-        key="testplugin_plugin_text_settinga"
+        key="testplugin_text_settinga"
         label="Setting One"
         maxLength={null}
         onChange={[Function]}
         placeholder="e.g. some setting"
+        setByEnv={false}
         type="input"
         value="fsdsdg"
       />
@@ -264,11 +328,16 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
             values={Object {}}
           />
         }
-        helpText="This is some help text for the bool field."
+        helpText={
+          <span>
+            This is some help text for the bool field.
+          </span>
+        }
         id="settingb"
-        key="testplugin_plugin_bool_settingb"
+        key="testplugin_bool_settingb"
         label="Setting Two"
         onChange={[Function]}
+        setByEnv={false}
         trueText={
           <FormattedMessage
             defaultMessage="true"
@@ -279,12 +348,18 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
         value={false}
       />
       <DropdownSetting
-        helpText="This is some help text for the dropdown field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the dropdown field.
+          </span>
+        }
         id="settingc"
         isDisabled={false}
-        key="testplugin_plugin_dropdown_settingc"
+        key="testplugin_dropdown_settingc"
         label="Setting Three"
         onChange={[Function]}
+        setByEnv={false}
         value="option3"
         values={
           Array [
@@ -304,12 +379,17 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
         }
       />
       <RadioSetting
-        helpText="This is some help text for the radio field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the radio field.
+          </span>
+        }
         id="settingd"
-        isDisabled={false}
-        key="testplugin_plugin_radio_settingd"
+        key="testplugin_radio_settingd"
         label="Setting Four"
         onChange={[Function]}
+        setByEnv={false}
         value="option1"
         values={
           Array [
@@ -330,9 +410,13 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
       />
       <GeneratedSetting
         disabled={false}
-        helpText="This is some help text for the generated field."
+        helpText={
+          <span>
+            This is some help text for the generated field.
+          </span>
+        }
         id="settinge"
-        key="testplugin_plugin_generated_settinge"
+        key="testplugin_generated_settinge"
         label="Setting Five"
         onChange={[Function]}
         placeholder="e.g. 47KyfOxtk5+ovi1MDHFyzMDHIA6esMWb"
@@ -344,12 +428,18 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
             values={Object {}}
           />
         }
+        setByEnv={false}
         value="Q6DHXrFLOIS5sOI5JNF4PyDLqWm7vh23"
       />
       <UserAutocompleteSetting
-        helpText="This is some help text for the user autocomplete field."
+        disabled={false}
+        helpText={
+          <span>
+            This is some help text for the user autocomplete field.
+          </span>
+        }
         id="settingf"
-        key="testplugin_plugin_userautocomplete_settingf"
+        key="testplugin_userautocomplete_settingf"
         label="Setting Six"
         onChange={[Function]}
         placeholder="Type a username here"
@@ -366,27 +456,40 @@ exports[`components/admin_console/CustomPluginSettings should match snapshot wit
       />
     </SettingsGroup>
     <div
-      className="form-group"
+      className="admin-console-save"
     >
-      <FormError
-        error={null}
-        errors={Array []}
+      <SaveButton
+        btnClass="btn-primary"
+        defaultMessage="Save"
+        disabled={true}
+        extraClasses=""
+        onClick={[Function]}
+        saving={false}
+        savingMessage="Saving Config..."
       />
-    </div>
-    <div
-      className="form-group"
-    >
       <div
-        className="col-sm-12"
+        className="error-message"
+        onMouseOut={[Function]}
+        onMouseOver={[Function]}
       >
-        <SaveButton
-          defaultMessage="Saving"
-          disabled={true}
-          onClick={[Function]}
-          saving={false}
-          savingMessageId="admin.saving"
+        <FormError
+          error={null}
+          errors={Array []}
         />
       </div>
+      <Overlay
+        animation={[Function]}
+        delayShow={400}
+        placement="top"
+        rootClose={false}
+        show={false}
+      >
+        <Tooltip
+          bsClass="tooltip"
+          id="error-tooltip"
+          placement="right"
+        />
+      </Overlay>
     </div>
   </form>
 </div>

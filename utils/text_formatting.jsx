@@ -1,7 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
-import Autolinker from 'autolinker';
 import twemoji from 'twemoji';
 import XRegExp from 'xregexp';
 
@@ -9,11 +8,11 @@ import EmojiStore from 'stores/emoji_store.jsx';
 
 import Constants from './constants.jsx';
 import * as Emoticons from './emoticons.jsx';
-import * as Markdown from './markdown.jsx';
+import * as Markdown from './markdown';
 
 const punctuation = XRegExp.cache('[^\\pL\\d]');
 
-// pattern to detect the existance of a Chinese, Japanese, or Korean character in a string
+// pattern to detect the existence of a Chinese, Japanese, or Korean character in a string
 // http://stackoverflow.com/questions/15033196/using-javascript-to-check-whether-a-string-contains-japanese-characters-includi
 const cjkPattern = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf\uac00-\ud7a3]/;
 
@@ -24,7 +23,7 @@ const cjkPattern = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-
 // - mentionHighlight - Specifies whether or not to highlight mentions of the current user. Defaults to true.
 // - mentionKeys - A list of mention keys for the current user to highlight.
 // - singleline - Specifies whether or not to remove newlines. Defaults to false.
-// - emoticons - Enables emoticon parsing. Defaults to true.
+// - emoticons - Enables emoticon parsing with a data-emoticon attribute. Defaults to true.
 // - markdown - Enables markdown parsing. Defaults to true.
 // - siteURL - The origin of this Mattermost instance. If provided, links to channels and posts will be replaced with internal
 //     links that can be handled by a special click handler.
@@ -32,6 +31,7 @@ const cjkPattern = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-
 // - channelNamesMap - An object mapping channel display names to channels. If provided, ~channel mentions will be replaced with
 //      links to the relevant channel.
 // - team - The current team.
+// - proxyImages - If specified, images are proxied. Defaults to false.
 export function formatText(text, inputOptions) {
     if (!text || typeof text !== 'string') {
         return '';
@@ -77,7 +77,7 @@ export function doFormatText(text, options) {
     output = autolinkHashtags(output, tokens);
 
     if (!('emoticons' in options) || options.emoticon) {
-        output = Emoticons.handleEmoticons(output, tokens, options.emojis || EmojiStore.getEmojis());
+        output = Emoticons.handleEmoticons(output, tokens);
     }
 
     if (options.searchPatterns) {
@@ -98,7 +98,7 @@ export function doFormatText(text, options) {
                 }
 
                 return EmojiStore.getEmojiImageUrl(EmojiStore.getUnicode(icon));
-            }
+            },
         });
     }
 
@@ -121,38 +121,33 @@ export function sanitizeHtml(text) {
     return output;
 }
 
+// Copied from our fork of commonmark.js
+var emailAlphaNumericChars = '\\p{L}\\p{Nd}';
+var emailSpecialCharacters = '!#$%&\'*+\\-\\/=?^_`{|}~';
+var emailRestrictedSpecialCharacters = '\\s(),:;<>@\\[\\]';
+var emailValidCharacters = emailAlphaNumericChars + emailSpecialCharacters;
+var emailValidRestrictedCharacters = emailValidCharacters + emailRestrictedSpecialCharacters;
+var emailStartPattern = '(?:[' + emailValidCharacters + '](?:[' + emailValidCharacters + ']|\\.(?!\\.|@))*|\\"[' + emailValidRestrictedCharacters + '.]+\\")@';
+var reEmail = XRegExp.cache('(^|[^\\pL\\d])(' + emailStartPattern + '[\\pL\\d.\\-]+[.]\\pL{2,4}(?=$|[^\\p{L}]))', 'g');
+
 // Convert emails into tokens
 function autolinkEmails(text, tokens) {
-    function replaceEmailWithToken(match) {
-        const linkText = match.getMatchedText();
-        let url = linkText;
-
-        if (match.getType() === 'email') {
-            url = `mailto:${url}`;
-        }
-
+    function replaceEmailWithToken(fullMatch, prefix, email) {
         const index = tokens.size;
         const alias = `$MM_EMAIL${index}`;
 
         tokens.set(alias, {
-            value: `<a class="theme" href="${url}">${linkText}</a>`,
-            originalText: linkText
+            value: `<a class="theme" href="mailto:${email}">${email}</a>`,
+            originalText: email,
         });
 
-        return alias;
+        return prefix + alias;
     }
 
-    // we can't just use a static autolinker because we need to set replaceFn
-    const autolinker = new Autolinker({
-        urls: false,
-        email: true,
-        phone: false,
-        mention: false,
-        hashtag: false,
-        replaceFn: replaceEmailWithToken
-    });
+    let output = text;
+    output = XRegExp.replace(text, reEmail, replaceEmailWithToken);
 
-    return autolinker.link(text);
+    return output;
 }
 
 export function autolinkAtMentions(text, tokens) {
@@ -162,7 +157,7 @@ export function autolinkAtMentions(text, tokens) {
 
         tokens.set(alias, {
             value: `<span data-mention="${username}">@${username}</span>`,
-            originalText: fullMatch
+            originalText: fullMatch,
         });
 
         return alias;
@@ -188,7 +183,7 @@ function autolinkChannelMentions(text, tokens, channelNamesMap, team) {
 
         tokens.set(alias, {
             value: `<a class="mention-link" href="${href}" data-channel-mention="${channelName}">~${displayName}</a>`,
-            originalText: mention
+            originalText: mention,
         });
         return alias;
     }
@@ -239,7 +234,7 @@ const htmlEntities = {
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
-    "'": '&#039;'
+    "'": '&#039;',
 };
 
 export function escapeHtml(text) {
@@ -252,13 +247,15 @@ function highlightCurrentMentions(text, tokens, mentionKeys = []) {
     // look for any existing tokens which are self mentions and should be highlighted
     var newTokens = new Map();
     for (const [alias, token] of tokens) {
-        if (mentionKeys.indexOf(token.originalText) !== -1) {
+        const tokenTextLower = token.originalText.toLowerCase();
+
+        if (mentionKeys.findIndex((key) => key.key.toLowerCase() === tokenTextLower) !== -1) {
             const index = tokens.size + newTokens.size;
             const newAlias = `$MM_SELFMENTION${index}`;
 
             newTokens.set(newAlias, {
                 value: `<span class='mention--highlight'>${alias}</span>`,
-                originalText: token.originalText
+                originalText: token.originalText,
             });
             output = output.replace(alias, newAlias);
         }
@@ -276,18 +273,25 @@ function highlightCurrentMentions(text, tokens, mentionKeys = []) {
 
         tokens.set(alias, {
             value: `<span class='mention--highlight'>${mention}</span>`,
-            originalText: mention
+            originalText: mention,
         });
 
         return prefix + alias;
     }
 
     for (const mention of mentionKeys) {
-        if (!mention) {
+        if (!mention || !mention.key) {
             continue;
         }
 
-        output = output.replace(new RegExp(`(^|\\W)(${escapeRegex(mention)})\\b`, 'gi'), replaceCurrentMentionWithToken);
+        let flags = 'g';
+        if (!mention.caseSensitive) {
+            flags += 'i';
+        }
+
+        const pattern = new RegExp(`(^|\\W)(${escapeRegex(mention.key)})\\b`, flags);
+
+        output = output.replace(pattern, replaceCurrentMentionWithToken);
     }
 
     return output;
@@ -305,7 +309,7 @@ function autolinkHashtags(text, tokens) {
             newTokens.set(newAlias, {
                 value: `<a class='mention-link' href='#' data-hashtag='${token.originalText}'>${token.originalText}</a>`,
                 originalText: token.originalText,
-                hashtag: token.originalText.substring(1)
+                hashtag: token.originalText.substring(1),
             });
 
             output = output.replace(alias, newAlias);
@@ -330,7 +334,7 @@ function autolinkHashtags(text, tokens) {
         tokens.set(alias, {
             value: `<a class='mention-link' href='#' data-hashtag='${originalText}'>${originalText}</a>`,
             originalText,
-            hashtag: originalText.substring(1)
+            hashtag: originalText.substring(1),
         });
 
         return prefix + alias;
@@ -366,7 +370,7 @@ function parseSearchTerms(searchTerm) {
         }
 
         // capture at mentions differently from the server so we can highlight them with the preceeding at sign
-        captured = (/^@\w+\b/).exec(termString);
+        captured = (/^@[a-z0-9.-_]+\b/).exec(termString);
         if (captured) {
             termString = termString.substring(captured[0].length);
 
@@ -406,7 +410,7 @@ function convertSearchTermToRegex(term) {
     if (cjkPattern.test(term)) {
         // term contains Chinese, Japanese, or Korean characters so don't mark word boundaries
         pattern = '()(' + escapeRegex(term.replace(/\*/g, '')) + ')';
-    } else if (term.endsWith('*')) {
+    } else if (/[^\s][*]$/.test(term)) {
         pattern = '\\b()(' + escapeRegex(term.substring(0, term.length - 1)) + ')';
     } else if (term.startsWith('@') || term.startsWith('#')) {
         // needs special handling of the first boundary because a word boundary doesn't work before a symbol
@@ -417,7 +421,7 @@ function convertSearchTermToRegex(term) {
 
     return {
         pattern: new RegExp(pattern, 'gi'),
-        term
+        term,
     };
 }
 
@@ -434,7 +438,7 @@ export function highlightSearchTerms(text, tokens, searchPatterns) {
 
         tokens.set(alias, {
             value: `<span class='search-highlight'>${word}</span>`,
-            originalText: word
+            originalText: word,
         });
 
         return prefix + alias;
@@ -464,7 +468,7 @@ export function highlightSearchTerms(text, tokens, searchPatterns) {
 
                 newTokens.set(newAlias, {
                     value: `<span class='search-highlight'>${alias}</span>`,
-                    originalText: token.originalText
+                    originalText: token.originalText,
                 });
 
                 output = output.replace(alias, newAlias);

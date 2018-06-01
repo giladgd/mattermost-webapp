@@ -1,19 +1,19 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
 
 import ErrorStore from 'stores/error_store.jsx';
-
 import {ErrorBarTypes} from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
+
+import EmailConnectionTest from 'components/admin_console/email_connection_test';
 
 import AdminSettings from './admin_settings.jsx';
 import BooleanSetting from './boolean_setting.jsx';
 import {ConnectionSecurityDropdownSettingEmail} from './connection_security_dropdown_setting.jsx';
 import DropdownSetting from './dropdown_setting.jsx';
-import EmailConnectionTest from './email_connection_test.jsx';
 import SettingsGroup from './settings_group.jsx';
 import TextSetting from './text_setting.jsx';
 
@@ -31,6 +31,7 @@ export default class EmailSettings extends AdminSettings {
 
     getConfigFromState(config) {
         config.EmailSettings.SendEmailNotifications = this.state.sendEmailNotifications;
+        config.EmailSettings.EnablePreviewModeBanner = this.state.enablePreviewModeBanner;
         config.EmailSettings.FeedbackName = this.state.feedbackName;
         config.EmailSettings.FeedbackEmail = this.state.feedbackEmail;
         config.EmailSettings.FeedbackOrganization = this.state.feedbackOrganization;
@@ -49,7 +50,7 @@ export default class EmailSettings extends AdminSettings {
     }
 
     handleSaved(newConfig) {
-        if (newConfig.EmailSettings.SendEmailNotifications) {
+        if (newConfig.EmailSettings.SendEmailNotifications || !newConfig.EmailSettings.EnablePreviewModeBanner) {
             ErrorStore.clearError(ErrorBarTypes.PREVIEW_MODE);
         }
     }
@@ -57,6 +58,7 @@ export default class EmailSettings extends AdminSettings {
     getStateFromConfig(config) {
         return {
             sendEmailNotifications: config.EmailSettings.SendEmailNotifications,
+            enablePreviewModeBanner: config.EmailSettings.EnablePreviewModeBanner,
             feedbackName: config.EmailSettings.FeedbackName,
             feedbackEmail: config.EmailSettings.FeedbackEmail,
             feedbackOrganization: config.EmailSettings.FeedbackOrganization,
@@ -69,7 +71,7 @@ export default class EmailSettings extends AdminSettings {
             enableEmailBatching: config.EmailSettings.EnableEmailBatching,
             skipServerCertificateVerification: config.EmailSettings.SkipServerCertificateVerification,
             enableSecurityFixAlert: config.ServiceSettings.EnableSecurityFixAlert,
-            emailNotificationContentsType: config.EmailSettings.EmailNotificationContentsType
+            emailNotificationContentsType: config.EmailSettings.EmailNotificationContentsType,
         };
     }
 
@@ -113,7 +115,7 @@ export default class EmailSettings extends AdminSettings {
 
         let emailNotificationContentsTypeDropdown = null;
         let emailNotificationContentsHelpText = null;
-        if (window.mm_license.EmailNotificationContents === 'true') {
+        if (this.props.license.EmailNotificationContents === 'true') {
             const emailNotificationContentsTypes = [];
             emailNotificationContentsTypes.push({value: EMAIL_NOTIFICATION_CONTENTS_FULL, text: Utils.localizeMessage('admin.email.notification.contents.full', 'Send full message contents')});
             emailNotificationContentsTypes.push({value: EMAIL_NOTIFICATION_CONTENTS_GENERIC, text: Utils.localizeMessage('admin.email.notification.contents.generic', 'Send generic description with only sender name')});
@@ -149,6 +151,8 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.emailNotificationContentsType}
                     onChange={this.handleChange}
                     helpText={emailNotificationContentsHelpText}
+                    disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.EmailNotificationContentsType')}
                 />
             );
         }
@@ -166,11 +170,31 @@ export default class EmailSettings extends AdminSettings {
                     helpText={
                         <FormattedHTMLMessage
                             id='admin.email.notificationsDescription'
-                            defaultMessage='Typically set to true in production. When true, Mattermost attempts to send email notifications. Developers may set this field to false to skip email setup for faster development.<br />Setting this to true removes the Preview Mode banner (requires logging out and logging back in after setting is changed).'
+                            defaultMessage='Typically set to true in production. When true, Mattermost attempts to send email notifications. Developers may set this field to false to skip email setup for faster development.'
                         />
                     }
                     value={this.state.sendEmailNotifications}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('EmailSettings.SendEmailNotifications')}
+                />
+                <BooleanSetting
+                    id='enablePreviewModeBanner'
+                    label={
+                        <FormattedMessage
+                            id='admin.email.enablePreviewModeBannerTitle'
+                            defaultMessage='Enable Preview Mode Banner:'
+                        />
+                    }
+                    helpText={
+                        <FormattedHTMLMessage
+                            id='admin.email.enablePreviewModeBannerDescription'
+                            defaultMessage='When true, the Preview Mode banner is displayed so users are aware that email notifications are disabled. When false, the Preview Mode banner is not displayed to users.'
+                        />
+                    }
+                    value={this.state.enablePreviewModeBanner}
+                    onChange={this.handleChange}
+                    disabled={this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.EnablePreviewModeBanner')}
                 />
                 <BooleanSetting
                     id='enableEmailBatching'
@@ -186,11 +210,12 @@ export default class EmailSettings extends AdminSettings {
                             id='admin.email.enableEmailBatchingDesc'
                             defaultMessage='When true, users will have email notifications for multiple direct messages and mentions combined into a single email. Batching will occur at a default interval of 15 minutes, configurable in Account Settings > Notifications.'
                         />,
-                        enableEmailBatchingDisabledText
+                        enableEmailBatchingDisabledText,
                     ]}
                     value={this.state.enableEmailBatching && !this.props.config.ClusterSettings.Enable && Boolean(this.props.config.ServiceSettings.SiteURL)}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications || this.props.config.ClusterSettings.Enable || !this.props.config.ServiceSettings.SiteURL}
+                    setByEnv={this.isSetByEnv('EmailSettings.EnableEmailBatching')}
                 />
                 {emailNotificationContentsTypeDropdown}
                 <TextSetting
@@ -211,6 +236,7 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.feedbackName}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.FeedbackName')}
                 />
                 <TextSetting
                     id='feedbackEmail'
@@ -230,6 +256,7 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.feedbackEmail}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.FeedbackEmail')}
                 />
                 <TextSetting
                     id='feedbackOrganization'
@@ -249,6 +276,7 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.feedbackOrganization}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.FeedbackOrganization')}
                 />
                 <TextSetting
                     id='smtpServer'
@@ -268,6 +296,7 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.smtpServer}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.SMTPServer')}
                 />
                 <TextSetting
                     id='smtpPort'
@@ -287,6 +316,7 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.smtpPort}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.SMTPPort')}
                 />
                 <BooleanSetting
                     id='enableSMTPAuth'
@@ -301,11 +331,12 @@ export default class EmailSettings extends AdminSettings {
                             key='admin.email.enableSMTPAuthDesc'
                             id='admin.email.enableSMTPAuthDesc'
                             defaultMessage='When true, SMTP Authentication is enabled.'
-                        />
+                        />,
                     ]}
                     value={this.state.enableSMTPAuth}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.EnableSMTPAuth')}
                 />
                 <TextSetting
                     id='smtpUsername'
@@ -325,6 +356,7 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.smtpUsername}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications || !this.state.enableSMTPAuth}
+                    setByEnv={this.isSetByEnv('EmailSettings.SMTPUsername')}
                 />
                 <TextSetting
                     id='smtpPassword'
@@ -344,11 +376,13 @@ export default class EmailSettings extends AdminSettings {
                     value={this.state.smtpPassword}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications || !this.state.enableSMTPAuth}
+                    setByEnv={this.isSetByEnv('EmailSettings.SMTPPassword')}
                 />
                 <ConnectionSecurityDropdownSettingEmail
                     value={this.state.connectionSecurity}
                     onChange={this.handleChange}
                     disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('EmailSettings.ConnectionSecurity')}
                 />
                 <EmailConnectionTest
                     config={this.props.config}
@@ -371,6 +405,8 @@ export default class EmailSettings extends AdminSettings {
                     }
                     value={this.state.skipServerCertificateVerification}
                     onChange={this.handleChange}
+                    disabled={!this.state.sendEmailNotifications || this.state.connectionSecurity === ''}
+                    setByEnv={this.isSetByEnv('EmailSettings.SkipServerCertificateVerification')}
                 />
                 <BooleanSetting
                     id='enableSecurityFixAlert'
@@ -388,6 +424,8 @@ export default class EmailSettings extends AdminSettings {
                     }
                     value={this.state.enableSecurityFixAlert}
                     onChange={this.handleChange}
+                    disabled={!this.state.sendEmailNotifications}
+                    setByEnv={this.isSetByEnv('ServiceSettings.EnableSecurityFixAlert')}
                 />
             </SettingsGroup>
         );

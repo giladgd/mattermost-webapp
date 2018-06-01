@@ -1,54 +1,51 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
-import {FormattedMessage} from 'react-intl';
 
-export default class SaveButton extends React.Component {
-    static get propTypes() {
-        return {
-            saving: PropTypes.bool.isRequired,
-            disabled: PropTypes.bool,
-            savingMessageId: PropTypes.string,
-            defaultMessage: PropTypes.string
-        };
+import {localizeMessage} from 'utils/utils.jsx';
+
+export default class SaveButton extends React.PureComponent {
+    static propTypes = {
+        saving: PropTypes.bool.isRequired,
+        disabled: PropTypes.bool,
+        savingMessage: PropTypes.node,
+        defaultMessage: PropTypes.node,
+        btnClass: PropTypes.string,
+        extraClasses: PropTypes.string,
     }
 
-    static get defaultProps() {
-        return {
-            disabled: false,
-            savingMessageId: 'setting_item_max.saving',
-            defaultMessage: 'Saving'
-        };
+    static defaultProps = {
+        disabled: false,
+        savingMessage: localizeMessage('save_button.saving', 'Saving'),
+        defaultMessage: localizeMessage('save_button.save', 'Save'),
+        btnClass: 'btn-primary',
+        extraClasses: '',
     }
 
     render() {
-        const {saving, disabled, savingMessageId, defaultMessage, ...props} = this.props; // eslint-disable-line no-use-before-define
+        const {saving, disabled, savingMessage, defaultMessage, btnClass, extraClasses, ...props} = this.props; // eslint-disable-line no-use-before-define
 
         let contents;
         if (saving) {
             contents = (
                 <span>
-                    <span className='icon fa fa-refresh icon--rotate'/>
-                    <FormattedMessage
-                        id={savingMessageId}
-                        defaultMessage={defaultMessage}
-                    />
+                    <span className='fa fa-refresh icon--rotate'/>
+                    {savingMessage}
                 </span>
             );
         } else {
-            contents = (
-                <FormattedMessage
-                    id='admin.save'
-                    defaultMessage='Save'
-                />
-            );
+            contents = defaultMessage;
         }
 
         let className = 'save-button btn';
-        if (!disabled) {
-            className += ' btn-primary';
+        if (!disabled || saving) {
+            className += ' ' + btnClass;
+        }
+
+        if (extraClasses) {
+            className += ' ' + extraClasses;
         }
 
         return (

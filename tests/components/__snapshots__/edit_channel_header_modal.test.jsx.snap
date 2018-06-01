@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`components/edit_channel_header_modal/edit_channel_header_modal edit dirrect message channel 1`] = `
+exports[`components/EditChannelHeaderModal edit dirrect message channel 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -21,6 +21,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal edit dir
       "remove": [Function],
     }
   }
+  onEntering={[Function]}
   onExited={[Function]}
   onHide={[Function]}
   renderBackdrop={[Function]}
@@ -103,7 +104,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal edit dir
 </Modal>
 `;
 
-exports[`components/edit_channel_header_modal/edit_channel_header_modal error with intl message 1`] = `
+exports[`components/EditChannelHeaderModal error with intl message 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -124,6 +125,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal error wi
       "remove": [Function],
     }
   }
+  onEntering={[Function]}
   onExited={[Function]}
   onHide={[Function]}
   renderBackdrop={[Function]}
@@ -220,7 +222,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal error wi
 </Modal>
 `;
 
-exports[`components/edit_channel_header_modal/edit_channel_header_modal error without intl message 1`] = `
+exports[`components/EditChannelHeaderModal error without intl message 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -241,6 +243,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal error wi
       "remove": [Function],
     }
   }
+  onEntering={[Function]}
   onExited={[Function]}
   onHide={[Function]}
   renderBackdrop={[Function]}
@@ -337,7 +340,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal error wi
 </Modal>
 `;
 
-exports[`components/edit_channel_header_modal/edit_channel_header_modal hide error message on new request 1`] = `
+exports[`components/EditChannelHeaderModal hide error message on new request 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -358,6 +361,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal hide err
       "remove": [Function],
     }
   }
+  onEntering={[Function]}
   onExited={[Function]}
   onHide={[Function]}
   renderBackdrop={[Function]}
@@ -444,7 +448,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal hide err
 </Modal>
 `;
 
-exports[`components/edit_channel_header_modal/edit_channel_header_modal should match snapshot, init 1`] = `
+exports[`components/EditChannelHeaderModal should match snapshot, init 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -465,6 +469,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal should m
       "remove": [Function],
     }
   }
+  onEntering={[Function]}
   onExited={[Function]}
   onHide={[Function]}
   renderBackdrop={[Function]}
@@ -551,7 +556,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal should m
 </Modal>
 `;
 
-exports[`components/edit_channel_header_modal/edit_channel_header_modal submitted 1`] = `
+exports[`components/EditChannelHeaderModal submitted 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -572,6 +577,7 @@ exports[`components/edit_channel_header_modal/edit_channel_header_modal submitte
       "remove": [Function],
     }
   }
+  onEntering={[Function]}
   onExited={[Function]}
   onHide={[Function]}
   renderBackdrop={[Function]}

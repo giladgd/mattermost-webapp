@@ -1,5 +1,5 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import assert from 'assert';
 
@@ -13,15 +13,17 @@ describe('Selectors.Storage', () => {
                 currentUserId: 'user_id',
                 profiles: {
                     user_id: {
-                        id: 'user_id'
-                    }
-                }
-            }
+                        id: 'user_id',
+                    },
+                },
+            },
         },
         storage: {
-            'global-item': 'global-item-value',
-            user_id_item: 'item-value'
-        }
+            storage: {
+                'global-item': {value: 'global-item-value', timestamp: new Date()},
+                user_id_item: {value: 'item-value', timestamp: new Date()},
+            },
+        },
     };
 
     it('getPrefix', () => {

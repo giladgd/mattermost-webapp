@@ -1,26 +1,22 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
 
-import UserStore from 'stores/user_store.jsx';
+import AutosizeTextarea from 'components/autosize_textarea.jsx';
+import PostMarkdown from 'components/post_markdown';
+import AtMentionProvider from 'components/suggestion/at_mention_provider.jsx';
+import ChannelMentionProvider from 'components/suggestion/channel_mention_provider.jsx';
+import CommandProvider from 'components/suggestion/command_provider.jsx';
+import EmoticonProvider from 'components/suggestion/emoticon_provider.jsx';
+import SuggestionBox from 'components/suggestion/suggestion_box.jsx';
+import SuggestionList from 'components/suggestion/suggestion_list.jsx';
 import ErrorStore from 'stores/error_store.jsx';
-
 import Constants from 'utils/constants.jsx';
-import * as TextFormatting from 'utils/text_formatting.jsx';
 import * as Utils from 'utils/utils.jsx';
-import * as PostUtils from 'utils/post_utils.jsx';
-
-import AtMentionProvider from './suggestion/at_mention_provider.jsx';
-import ChannelMentionProvider from './suggestion/channel_mention_provider.jsx';
-import CommandProvider from './suggestion/command_provider.jsx';
-import EmoticonProvider from './suggestion/emoticon_provider.jsx';
-import SuggestionBox from './suggestion/suggestion_box.jsx';
-import SuggestionList from './suggestion/suggestion_list.jsx';
 
 const PreReleaseFeatures = Constants.PRE_RELEASE_FEATURES;
 
@@ -41,27 +37,27 @@ export default class Textbox extends React.Component {
         emojiEnabled: PropTypes.bool,
         isRHS: PropTypes.bool,
         popoverMentionKeyClick: PropTypes.bool,
-        characterLimit: PropTypes.number
+        characterLimit: PropTypes.number.isRequired,
+        disabled: PropTypes.bool,
     };
 
     static defaultProps = {
         supportsCommands: true,
         isRHS: false,
         popoverMentionKeyClick: false,
-        characterLimit: Constants.CHARACTER_LIMIT
     };
 
     constructor(props) {
         super(props);
 
         this.state = {
-            connection: ''
+            connection: '',
         };
 
         this.suggestionProviders = [
             new AtMentionProvider(this.props.channelId),
             new ChannelMentionProvider(),
-            new EmoticonProvider()
+            new EmoticonProvider(),
         ];
         if (props.supportsCommands) {
             this.suggestionProviders.push(new CommandProvider());
@@ -72,7 +68,7 @@ export default class Textbox extends React.Component {
         ErrorStore.addChangeListener(this.onReceivedError);
     }
 
-    componentWillMount() {
+    UNSAFE_componentWillMount() { // eslint-disable-line camelcase
         this.checkMessageLength(this.props.value);
     }
 
@@ -91,7 +87,6 @@ export default class Textbox extends React.Component {
     }
 
     handleChange = (e) => {
-        this.checkMessageLength(e.target.value);
         this.props.onChange(e);
     }
 
@@ -104,7 +99,7 @@ export default class Textbox extends React.Component {
                         defaultMessage='Your message is too long. Character count: {length}/{limit}'
                         values={{
                             length: message.length,
-                            limit: this.props.characterLimit
+                            limit: this.props.characterLimit,
                         }}
                     />);
                 this.props.handlePostError(errorMessage);
@@ -142,6 +137,9 @@ export default class Textbox extends React.Component {
 
         textbox.focus();
         Utils.placeCaretAtEnd(textbox);
+
+        // reset character count warning
+        this.checkMessageLength(textbox.value);
     }
 
     blur = () => {
@@ -165,7 +163,7 @@ export default class Textbox extends React.Component {
         this.setState({preview: false});
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         if (nextProps.channelId !== this.props.channelId) {
             // Update channel id for AtMentionProvider.
             const providers = this.suggestionProviders;
@@ -174,6 +172,9 @@ export default class Textbox extends React.Component {
                     providers[i] = new AtMentionProvider(nextProps.channelId);
                 }
             }
+        }
+        if (this.props.value !== nextProps.value) {
+            this.checkMessageLength(nextProps.value);
         }
     }
 
@@ -271,24 +272,7 @@ export default class Textbox extends React.Component {
             </div>
         );
 
-        const options = {
-            mentionKeys: UserStore.getCurrentMentionKeys(),
-            atMentions: true
-        };
-
         let preview = null;
-
-        if (this.state.preview) {
-            preview = (
-                <div
-                    ref='preview'
-                    className='form-control custom-textarea textbox-preview-area'
-                    style={{display: this.state.preview ? 'block' : 'none'}}
-                >
-                    {PostUtils.postMessageHtmlToComponent(TextFormatting.formatText(this.props.value, options), this.props.isRHS)}
-                </div>
-            );
-        }
 
         let textboxClassName = 'form-control custom-textarea';
         if (this.props.emojiEnabled) {
@@ -296,6 +280,22 @@ export default class Textbox extends React.Component {
         }
         if (this.state.connection) {
             textboxClassName += ' ' + this.state.connection;
+        }
+        if (this.state.preview) {
+            textboxClassName += ' custom-textarea--preview';
+
+            preview = (
+                <div
+                    ref='preview'
+                    className='form-control custom-textarea textbox-preview-area'
+                    style={{display: this.state.preview ? 'block' : 'none'}}
+                >
+                    <PostMarkdown
+                        isRHS={this.props.isRHS}
+                        message={this.props.value}
+                    />
+                </div>
+            );
         }
 
         return (
@@ -307,7 +307,6 @@ export default class Textbox extends React.Component {
                     id={this.props.id}
                     ref='message'
                     className={textboxClassName}
-                    type='textarea'
                     spellCheck='true'
                     placeholder={this.props.createMessage}
                     onChange={this.handleChange}
@@ -316,6 +315,7 @@ export default class Textbox extends React.Component {
                     onBlur={this.handleBlur}
                     onHeightChange={this.handleHeightChange}
                     style={{visibility: this.state.preview ? 'hidden' : 'visible'}}
+                    inputComponent={AutosizeTextarea}
                     listComponent={SuggestionList}
                     listStyle={this.props.suggestionListStyle}
                     providers={this.suggestionProviders}
@@ -324,6 +324,7 @@ export default class Textbox extends React.Component {
                     renderDividers={true}
                     isRHS={this.props.isRHS}
                     popoverMentionKeyClick={this.props.popoverMentionKeyClick}
+                    disabled={this.props.disabled}
                 />
                 {preview}
                 <div className={'help__text ' + helpTextClass}>

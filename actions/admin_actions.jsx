@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import * as AdminActions from 'mattermost-redux/actions/admin';
 import * as UserActions from 'mattermost-redux/actions/users';
@@ -23,9 +23,10 @@ export async function saveConfig(config, success, error) {
 }
 
 export async function reloadConfig(success, error) {
-    const {data, error: err} = await AdminActions.reloadConfig()(dispatch, getState);
+    const {data, error: err} = await dispatch(AdminActions.reloadConfig());
     if (data && success) {
-        AdminActions.getConfig()(dispatch, getState);
+        dispatch(AdminActions.getConfig());
+        dispatch(AdminActions.getEnvironmentConfig());
         success(data);
     } else if (err && error) {
         error({id: err.server_error_id, ...err});
@@ -43,15 +44,6 @@ export async function adminResetMfa(userId, success, error) {
 
 export async function getClusterStatus(success, error) {
     const {data, error: err} = await AdminActions.getClusterStatus()(dispatch, getState);
-    if (data && success) {
-        success(data);
-    } else if (err && error) {
-        error({id: err.server_error_id, ...err});
-    }
-}
-
-export async function testEmail(config, success, error) {
-    const {data, error: err} = await AdminActions.testEmail(config)(dispatch, getState);
     if (data && success) {
         success(data);
     } else if (err && error) {
@@ -86,8 +78,8 @@ export async function recycleDatabaseConnection(success, error) {
     }
 }
 
-export async function adminResetPassword(userId, password, success, error) {
-    const {data, error: err} = await UserActions.updateUserPassword(userId, '', password)(dispatch, getState);
+export async function adminResetPassword(userId, currentPassword, password, success, error) {
+    const {data, error: err} = await UserActions.updateUserPassword(userId, currentPassword, password)(dispatch, getState);
     if (data && success) {
         success(data);
     } else if (err && error) {
@@ -121,11 +113,11 @@ export function getOAuthAppInfo(clientId, success, error) {
 }
 
 export function allowOAuth2(params, success, error) {
-    const responseType = params.response_type;
-    const clientId = params.client_id;
-    const redirectUri = params.redirect_uri;
-    const state = params.state;
-    const scope = params.scope;
+    const responseType = params.get('response_type');
+    const clientId = params.get('client_id');
+    const redirectUri = params.get('redirect_uri');
+    const state = params.get('state');
+    const scope = params.get('scope');
 
     Client4.authorizeOAuthApp(responseType, clientId, redirectUri, state, scope).then(
         (data) => {
@@ -280,6 +272,15 @@ export async function elasticsearchTest(config, success, error) {
     }
 }
 
+export async function testS3Connection(success, error) {
+    const {data, error: err} = await AdminActions.testS3Connection()(dispatch, getState);
+    if (data && success) {
+        success(data);
+    } else if (err && error) {
+        error({id: err.server_error_id, ...err});
+    }
+}
+
 export async function elasticsearchPurgeIndexes(success, error) {
     const {data, error: err} = await AdminActions.purgeElasticsearchIndexes()(dispatch, getState);
     if (data && success) {
@@ -292,20 +293,20 @@ export async function elasticsearchPurgeIndexes(success, error) {
 export function setNavigationBlocked(blocked) {
     return {
         type: ActionTypes.SET_NAVIGATION_BLOCKED,
-        blocked
+        blocked,
     };
 }
 
 export function deferNavigation(onNavigationConfirmed) {
     return {
         type: ActionTypes.DEFER_NAVIGATION,
-        onNavigationConfirmed
+        onNavigationConfirmed,
     };
 }
 
 export function cancelNavigation() {
     return {
-        type: ActionTypes.CANCEL_NAVIGATION
+        type: ActionTypes.CANCEL_NAVIGATION,
     };
 }
 
@@ -319,7 +320,7 @@ export function confirmNavigation() {
         }
 
         thunkDispatch({
-            type: ActionTypes.CONFIRM_NAVIGATION
+            type: ActionTypes.CONFIRM_NAVIGATION,
         });
     };
 }

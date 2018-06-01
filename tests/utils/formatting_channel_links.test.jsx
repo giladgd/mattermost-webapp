@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import assert from 'assert';
 
@@ -24,14 +24,14 @@ describe('TextFormatting.ChannelLinks', () => {
         assert.equal(
             TextFormatting.formatText('~town-square', {
                 channelNamesMap: {'town-square': {display_name: 'Town Square'}},
-                team: {name: 'myteam'}
+                team: {name: 'myteam'},
             }).trim(),
             '<p><a class="mention-link" href="/myteam/channels/town-square" data-channel-mention="town-square">~Town Square</a></p>'
         );
         assert.equal(
             TextFormatting.formatText('~town-square.', {
                 channelNamesMap: {'town-square': {display_name: 'Town Square'}},
-                team: {name: 'myteam'}
+                team: {name: 'myteam'},
             }).trim(),
             '<p><a class="mention-link" href="/myteam/channels/town-square" data-channel-mention="town-square">~Town Square</a>.</p>'
         );
@@ -39,7 +39,7 @@ describe('TextFormatting.ChannelLinks', () => {
         assert.equal(
             TextFormatting.formatText('~town-square', {
                 channelNamesMap: {'town-square': {display_name: '<b>Reception</b>'}},
-                team: {name: 'myteam'}
+                team: {name: 'myteam'},
             }).trim(),
             '<p><a class="mention-link" href="/myteam/channels/town-square" data-channel-mention="town-square">~&lt;b&gt;Reception&lt;/b&gt;</a></p>'
         );

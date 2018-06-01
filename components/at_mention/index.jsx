@@ -1,16 +1,17 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
-
-import {getUsersByUsername} from 'mattermost-redux/selectors/entities/users';
+import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
+import {getCurrentUserId, getUsersByUsername} from 'mattermost-redux/selectors/entities/users';
 
 import AtMention from './at_mention.jsx';
 
-function mapStateToProps(state, ownProps) {
+function mapStateToProps(state) {
     return {
-        ...ownProps,
-        usersByUsername: getUsersByUsername(state)
+        currentUserId: getCurrentUserId(state),
+        teammateNameDisplay: getTeammateNameDisplaySetting(state),
+        usersByUsername: getUsersByUsername(state),
     };
 }
 

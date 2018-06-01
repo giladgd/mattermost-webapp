@@ -1,11 +1,10 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {Modal} from 'react-bootstrap';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
-
 import {Client4} from 'mattermost-redux/client';
 import * as UserUtils from 'mattermost-redux/utils/user_utils';
 
@@ -40,8 +39,8 @@ export default class ManageTokensModal extends React.PureComponent {
             /**
              * Function to get a user's access tokens
              */
-            getUserAccessTokensForUser: PropTypes.func.isRequired
-        }).isRequired
+            getUserAccessTokensForUser: PropTypes.func.isRequired,
+        }).isRequired,
     };
 
     constructor(props) {
@@ -49,7 +48,7 @@ export default class ManageTokensModal extends React.PureComponent {
         this.state = {error: null};
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         const userId = this.props.user ? this.props.user.id : null;
         const nextUserId = nextProps.user ? nextProps.user.id : null;
         if (nextUserId && nextUserId !== userId) {
@@ -59,7 +58,7 @@ export default class ManageTokensModal extends React.PureComponent {
 
     handleError = (error) => {
         this.setState({
-            error
+            error,
         });
     }
 

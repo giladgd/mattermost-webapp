@@ -1,19 +1,19 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {OverlayTrigger, Popover} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
 
-import Constants from 'utils/constants.jsx';
-
 import MessageWrapper from 'components/message_wrapper.jsx';
+import InfoIcon from 'components/svg/info_icon';
 
 export default class NavbarInfoButton extends React.PureComponent {
     static propTypes = {
         channel: PropTypes.object,
-        showEditChannelHeaderModal: PropTypes.func.isRequired
+        showEditChannelHeaderModal: PropTypes.func.isRequired,
+        isReadOnly: PropTypes.bool,
     };
 
     showEditChannelHeaderModal = () => {
@@ -37,28 +37,38 @@ export default class NavbarInfoButton extends React.PureComponent {
                     />
                 );
             } else {
-                const link = (
-                    <a
-                        href='#'
-                        onClick={this.showEditChannelHeaderModal}
-                    >
-                        <FormattedMessage
-                            id='navbar.click'
-                            defaultMessage='Click here'
-                        />
-                    </a>
-                );
+                let addOne;
+                if (!this.props.isReadOnly) {
+                    const link = (
+                        <a
+                            href='#'
+                            onClick={this.showEditChannelHeaderModal}
+                        >
+                            <FormattedMessage
+                                id='navbar.click'
+                                defaultMessage='Click here'
+                            />
+                        </a>
+                    );
+                    addOne = (
+                        <React.Fragment>
+                            <br/>
+                            <FormattedMessage
+                                id='navbar.clickToAddHeader'
+                                defaultMessage='{clickHere} to add one.'
+                                values={{clickHere: link}}
+                            />
+                        </React.Fragment>
+                    );
+                }
 
                 popoverContent = (
                     <div>
                         <FormattedMessage
                             id='navbar.noHeader'
-                            defaultMessage='No channel header yet.{newline}{link} to add one.'
-                            values={{
-                                newline: (<br/>),
-                                link
-                            }}
+                            defaultMessage='No channel header yet.'
                         />
+                        {addOne}
                     </div>
                 );
             }
@@ -90,9 +100,8 @@ export default class NavbarInfoButton extends React.PureComponent {
                 rootClose={true}
             >
                 <div className='navbar-toggle navbar-right__icon navbar-info-button pull-right'>
-                    <span
+                    <InfoIcon
                         className='icon icon__info'
-                        dangerouslySetInnerHTML={{__html: Constants.INFO_ICON_SVG}}
                         aria-hidden='true'
                     />
                 </div>

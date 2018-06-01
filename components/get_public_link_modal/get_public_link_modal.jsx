@@ -1,14 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import PropTypes from 'prop-types';
 
 import ModalStore from 'stores/modal_store.jsx';
-
 import Constants from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
-
 import GetLinkModal from 'components/get_link_modal.jsx';
 
 export default class GetPublicLinkModal extends React.PureComponent {
@@ -24,19 +22,19 @@ export default class GetPublicLinkModal extends React.PureComponent {
             /**
              * An action to get public link
              */
-            getFilePublicLink: PropTypes.func.isRequired
-        }).isRequired
+            getFilePublicLink: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     static defaultProps = {
-        link: ''
+        link: '',
     }
 
     constructor(props) {
         super(props);
         this.state = {
             show: false,
-            fileId: ''
+            fileId: '',
         };
     }
 
@@ -57,13 +55,13 @@ export default class GetPublicLinkModal extends React.PureComponent {
     handleToggle = (value, args) => {
         this.setState({
             show: value,
-            fileId: args.fileId
+            fileId: args.fileId,
         });
     }
 
     onHide = () => {
         this.setState({
-            show: false
+            show: false,
         });
     }
 

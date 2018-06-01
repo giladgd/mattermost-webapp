@@ -1,13 +1,13 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
-import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
+import {NavLink} from 'react-router-dom';
 
-import {Link, browserHistory} from 'react-router';
+import {browserHistory} from 'utils/browser_history';
 
-export default class BlockableLink extends React.PureComponent {
+export default class BlockableLink extends React.Component {
     static propTypes = {
 
         /*
@@ -25,17 +25,13 @@ export default class BlockableLink extends React.PureComponent {
             /*
              * Function for deferring navigation while blocked
              */
-            deferNavigation: PropTypes.func.isRequired
-        }).isRequired
+            deferNavigation: PropTypes.func.isRequired,
+        }).isRequired,
     };
 
     handleClick = (e) => {
         if (this.props.blocked) {
             e.preventDefault();
-
-            if (this.refs.link) {
-                ReactDOM.findDOMNode(this.refs.link).blur();
-            }
 
             this.props.actions.deferNavigation(() => {
                 browserHistory.push(this.props.to);
@@ -49,10 +45,9 @@ export default class BlockableLink extends React.PureComponent {
         Reflect.deleteProperty(props, 'actions');
 
         return (
-            <Link
+            <NavLink
                 {...props}
                 onClick={this.handleClick}
-                ref='link'
             />
         );
     }

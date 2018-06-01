@@ -1,21 +1,17 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
-
 import {Preferences} from 'mattermost-redux/constants';
 import {getBool} from 'mattermost-redux/selectors/entities/preferences';
-import {isCurrentUserCurrentTeamAdmin} from 'mattermost-redux/selectors/entities/teams';
-import {isCurrentUserSystemAdmin} from 'mattermost-redux/selectors/entities/users';
+import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 
 import NewChannelModal from './new_channel_modal.jsx';
 
-function mapStateToProps(state, ownProps) {
+function mapStateToProps(state) {
     return {
-        ...ownProps,
         ctrlSend: getBool(state, Preferences.CATEGORY_ADVANCED_SETTINGS, 'send_on_ctrl_enter'),
-        isTeamAdmin: isCurrentUserCurrentTeamAdmin(state),
-        isSystemAdmin: isCurrentUserSystemAdmin(state)
+        currentTeamId: getCurrentTeamId(state),
     };
 }
 

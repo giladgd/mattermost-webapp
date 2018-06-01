@@ -1,25 +1,25 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
+
 import {deferNavigation} from 'actions/admin_actions.jsx';
-import {getNavigationBlocked} from 'selectors/views/admin'; 
+import {getNavigationBlocked} from 'selectors/views/admin';
 
 import AdminNavbarDropdown from './admin_navbar_dropdown.jsx';
 
-function mapStateToProps(state, ownProps) { 
+function mapStateToProps(state) {
     return {
-        ...ownProps,
-        navigationBlocked: getNavigationBlocked(state)         
+        navigationBlocked: getNavigationBlocked(state),
     };
-};
+}
 
 function mapDispatchToProps(dispatch) {
     return {
         actions: bindActionCreators({
-            deferNavigation
-        }, dispatch)
+            deferNavigation,
+        }, dispatch),
     };
 }
 

@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import assert from 'assert';
 
@@ -160,7 +160,7 @@ describe('TextFormatting.Hashtags', function() {
         );
 
         let options = {
-            atMentions: true
+            atMentions: true,
         };
         assert.equal(
             TextFormatting.formatText('#@test', options).trim(),
@@ -174,9 +174,9 @@ describe('TextFormatting.Hashtags', function() {
 
         options = {
             channelNamesMap: {
-                test: {id: '1234', name: 'test', display_name: 'Test Channel'}
+                test: {id: '1234', name: 'test', display_name: 'Test Channel'},
             },
-            team: {id: 'abcd', name: 'abcd', display_name: 'Alphabet'}
+            team: {id: 'abcd', name: 'abcd', display_name: 'Alphabet'},
         };
         assert.equal(
             TextFormatting.formatText('#~test', options).trim(),
@@ -185,7 +185,7 @@ describe('TextFormatting.Hashtags', function() {
 
         assert.equal(
             TextFormatting.formatText('#:mattermost:').trim(),
-            '<p>#<span alt=":mattermost:" class="emoticon" title=":mattermost:" style="background-image:url(/static/emoji/mattermost.png)"></span></p>'
+            '<p>#<span data-emoticon="mattermost">:mattermost:</span></p>'
         );
 
         assert.equal(

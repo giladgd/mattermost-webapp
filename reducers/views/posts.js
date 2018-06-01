@@ -1,15 +1,27 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {combineReducers} from 'redux';
-
-import {ActionTypes} from 'utils/constants.jsx';
 import {UserTypes} from 'mattermost-redux/action_types';
 
-function editingPost(state = '', action) {
+import {ActionTypes} from 'utils/constants.jsx';
+
+const defaultState = {
+    show: false,
+};
+
+function editingPost(state = defaultState, action) {
     switch (action.type) {
-    case ActionTypes.SET_EDITING_POST:
-        return action.data;
+    case ActionTypes.SHOW_EDIT_POST_MODAL:
+        return {
+            ...action.data,
+            show: true,
+        };
+    case ActionTypes.HIDE_EDIT_POST_MODAL:
+        return {
+            show: false,
+        };
+
     case UserTypes.LOGOUT_SUCCESS:
         return '';
     default:
@@ -18,5 +30,5 @@ function editingPost(state = '', action) {
 }
 
 export default combineReducers({
-    editingPost
+    editingPost,
 });

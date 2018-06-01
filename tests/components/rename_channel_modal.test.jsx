@@ -1,23 +1,21 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {RequestStatus} from 'mattermost-redux/constants';
 
 import {shallowWithIntl} from 'tests/helpers/intl-test-helper';
-
 import RenameChannelModal from 'components/rename_channel_modal/rename_channel_modal.jsx';
 
-describe('components/rename_channel_modal/rename_channel_modal.jsx', () => {
-    global.window.mm_config = {};
+describe('components/RenameChannelModal', () => {
     const channel = {
         id: 'fake-id',
         name: 'fake-channel',
-        display_name: 'Fake Channel'
+        display_name: 'Fake Channel',
     };
 
     const team = {
-        name: 'Fake Team', display_name: 'fake-team', type: 'O'
+        name: 'Fake Team', display_name: 'fake-team', type: 'O',
     };
 
     const baseProps = {
@@ -27,7 +25,7 @@ describe('components/rename_channel_modal/rename_channel_modal.jsx', () => {
         requestStatus: RequestStatus.NOT_STARTED,
         team: {...team},
         currentTeamUrl: 'fake-channel',
-        actions: {updateChannel: jest.fn()}
+        actions: {updateChannel: jest.fn()},
     };
 
     test('should match snapshot', () => {

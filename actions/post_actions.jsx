@@ -1,26 +1,24 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
-import {browserHistory} from 'react-router';
 import {batchActions} from 'redux-batched-actions';
-
-import {PostTypes} from 'mattermost-redux/action_types';
+import {PostTypes, SearchTypes} from 'mattermost-redux/action_types';
 import {getMyChannelMember} from 'mattermost-redux/actions/channels';
 import * as PostActions from 'mattermost-redux/actions/posts';
-import {Client4} from 'mattermost-redux/client';
 import * as Selectors from 'mattermost-redux/selectors/entities/posts';
+import {comparePosts} from 'mattermost-redux/utils/post_utils';
 
 import {sendDesktopNotification} from 'actions/notification_actions.jsx';
 import {loadNewDMIfNeeded, loadNewGMIfNeeded} from 'actions/user_actions.jsx';
+import * as RhsActions from 'actions/views/rhs';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import PostStore from 'stores/post_store.jsx';
 import store from 'stores/redux_store.jsx';
-import TeamStore from 'stores/team_store.jsx';
-import UserStore from 'stores/user_store.jsx';
-
-import {ActionTypes, Constants} from 'utils/constants.jsx';
+import {getSelectedPostId, getRhsState} from 'selectors/rhs';
+import {ActionTypes, Constants, RHSStates} from 'utils/constants.jsx';
 import {EMOJI_PATTERN} from 'utils/emoticons.jsx';
+import * as UserAgent from 'utils/user_agent';
 
 const dispatch = store.dispatch;
 const getState = store.getState;
@@ -68,7 +66,7 @@ function dispatchPostActions(post, websocketMessageProps) {
         dispatch({
             type: ActionTypes.INCREASE_POST_VISIBILITY,
             data: post.channel_id,
-            amount: 1
+            amount: 1,
         });
     }
 
@@ -78,76 +76,73 @@ function dispatchPostActions(post, websocketMessageProps) {
         data: {
             order: [],
             posts: {
-                [post.id]: post
-            }
+                [post.id]: post,
+            },
         },
-        channelId: post.channel_id
+        channelId: post.channel_id,
     });
 
     // Still needed to update unreads
     AppDispatcher.handleServerAction({
         type: ActionTypes.RECEIVED_POST,
         post,
-        websocketMessageProps
+        websocketMessageProps,
     });
 
     sendDesktopNotification(post, websocketMessageProps);
 }
 
-export function flagPost(postId) {
-    PostActions.flagPost(postId)(dispatch, getState);
-}
+export async function flagPost(postId) {
+    await PostActions.flagPost(postId)(dispatch, getState);
 
-export function unflagPost(postId) {
-    PostActions.unflagPost(postId)(dispatch, getState);
-}
+    const rhsState = getRhsState(getState());
 
-export function getFlaggedPosts() {
-    Client4.getFlaggedPosts(UserStore.getCurrentId(), '', TeamStore.getCurrentId()).then(
-        (data) => {
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_SEARCH_TERM,
-                term: null,
-                do_search: false,
-                is_mention_search: false
+    // This is a hack that should be fixed with better reducers/actions, see MM-9793
+    if (rhsState === RHSStates.FLAG) {
+        let results = getState().entities.search.results;
+        const index = results.indexOf(postId);
+        if (index === -1) {
+            results = [...results, postId];
+
+            const posts = {};
+            results.forEach((id) => {
+                posts[id] = Selectors.getPost(getState(), id);
             });
 
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_SEARCH,
-                results: data,
-                is_flagged_posts: true,
-                is_pinned_posts: false
-            });
+            results.sort((a, b) => comparePosts(posts[a], posts[b]));
 
-            PostActions.getProfilesAndStatusesForPosts(data.posts, dispatch, getState);
+            dispatch({
+                type: SearchTypes.RECEIVED_SEARCH_POSTS,
+                data: {posts, order: results},
+            });
         }
-    ).catch(
-        () => {} //eslint-disable-line no-empty-function
-    );
+    }
 }
 
-export function getPinnedPosts(channelId = ChannelStore.getCurrentId()) {
-    Client4.getPinnedPosts(channelId).then(
-        (data) => {
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_SEARCH_TERM,
-                term: null,
-                do_search: false,
-                is_mention_search: false
+export async function unflagPost(postId) {
+    await PostActions.unflagPost(postId)(dispatch, getState);
+
+    const rhsState = getRhsState(getState());
+
+    // This is a hack that should be fixed with better reducers/actions, see MM-9793
+    if (rhsState === RHSStates.FLAG) {
+        let results = getState().entities.search.results;
+        const index = results.indexOf(postId);
+        if (index > -1) {
+            results = [...results];
+            results.splice(index, 1);
+
+            const posts = {};
+            results.forEach((id) => {
+                posts[id] = Selectors.getPost(getState(), id);
             });
 
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_SEARCH,
-                results: {...data, channelId},
-                is_flagged_posts: false,
-                is_pinned_posts: true
+            dispatch({
+                type: SearchTypes.RECEIVED_SEARCH_POSTS,
+                data: {posts, order: results},
             });
-
-            PostActions.getProfilesAndStatusesForPosts(data.posts, dispatch, getState);
         }
-    ).catch(
-        () => {} //eslint-disable-line no-empty-function
-    );
+    }
 }
 
 export function addReaction(channelId, postId, emojiName) {
@@ -168,7 +163,12 @@ export async function createPost(post, files, success) {
         }
     }
 
-    await PostActions.createPost(post, files)(dispatch, getState);
+    if (UserAgent.isIosClassic()) {
+        await PostActions.createPostImmediately(post, files)(dispatch, getState);
+    } else {
+        await PostActions.createPost(post, files)(dispatch, getState);
+    }
+
     if (post.root_id) {
         PostStore.storeCommentDraft(post.root_id, null);
     } else {
@@ -188,7 +188,7 @@ export async function updatePost(post, success) {
         AppDispatcher.handleServerAction({
             type: ActionTypes.RECEIVED_ERROR,
             err: {id: err.server_error_id, ...err},
-            method: 'editPost'
+            method: 'editPost',
         });
     }
 }
@@ -196,72 +196,8 @@ export async function updatePost(post, success) {
 export function emitEmojiPosted(emoji) {
     AppDispatcher.handleServerAction({
         type: ActionTypes.EMOJI_POSTED,
-        alias: emoji
+        alias: emoji,
     });
-}
-
-export async function deletePost(channelId, post, success) {
-    const {currentUserId} = getState().entities.users;
-
-    let hardDelete = false;
-    if (post.user_id === currentUserId) {
-        hardDelete = true;
-    }
-
-    await PostActions.deletePost(post, hardDelete)(dispatch, getState);
-
-    if (post.id === getState().views.rhs.selectedPostId) {
-        dispatch({
-            type: ActionTypes.SELECT_POST,
-            postId: '',
-            channelId: ''
-        });
-    }
-
-    dispatch({
-        type: PostTypes.REMOVE_POST,
-        data: post
-    });
-
-    // Needed for search store
-    AppDispatcher.handleViewAction({
-        type: Constants.ActionTypes.REMOVE_POST,
-        post
-    });
-
-    const {focusedPostId} = getState().views.channel;
-    const channel = getState().entities.channels.channels[post.channel_id];
-    if (post.id === focusedPostId && channel) {
-        browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + channel.name);
-    }
-
-    if (success) {
-        success();
-    }
-}
-
-export function performSearch(terms, isMentionSearch, success, error) {
-    Client4.searchPosts(TeamStore.getCurrentId(), terms, isMentionSearch).then(
-        (data) => {
-            AppDispatcher.handleServerAction({
-                type: ActionTypes.RECEIVED_SEARCH,
-                results: data,
-                is_mention_search: isMentionSearch
-            });
-
-            PostActions.getProfilesAndStatusesForPosts(data.posts, dispatch, getState);
-
-            if (success) {
-                success(data);
-            }
-        }
-    ).catch(
-        (err) => {
-            if (error) {
-                error(err);
-            }
-        }
-    );
 }
 
 const POST_INCREASE_AMOUNT = Constants.POST_CHUNK_SIZE / 2;
@@ -283,13 +219,13 @@ export function increasePostVisibility(channelId, focusedPostId) {
             {
                 type: ActionTypes.LOADING_POSTS,
                 data: true,
-                channelId
+                channelId,
             },
             {
                 type: ActionTypes.INCREASE_POST_VISIBILITY,
                 data: channelId,
-                amount: POST_INCREASE_AMOUNT
-            }
+                amount: POST_INCREASE_AMOUNT,
+            },
         ]));
 
         const page = Math.floor(currentPostVisibility / POST_INCREASE_AMOUNT);
@@ -305,7 +241,7 @@ export function increasePostVisibility(channelId, focusedPostId) {
         doDispatch({
             type: ActionTypes.LOADING_POSTS,
             data: false,
-            channelId
+            channelId,
         });
 
         return posts.order.length >= POST_INCREASE_AMOUNT;
@@ -313,11 +249,8 @@ export function increasePostVisibility(channelId, focusedPostId) {
 }
 
 export function searchForTerm(term) {
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_SEARCH_TERM,
-        term,
-        do_search: true
-    });
+    dispatch(RhsActions.updateSearchTerms(term));
+    dispatch(RhsActions.showSearchResults());
 }
 
 export function pinPost(postId) {
@@ -326,7 +259,7 @@ export function pinPost(postId) {
 
         AppDispatcher.handleServerAction({
             type: ActionTypes.RECEIVED_POST_PINNED,
-            postId
+            postId,
         });
     };
 }
@@ -337,7 +270,7 @@ export function unpinPost(postId) {
 
         AppDispatcher.handleServerAction({
             type: ActionTypes.RECEIVED_POST_UNPINNED,
-            postId
+            postId,
         });
     };
 }
@@ -346,12 +279,76 @@ export function doPostAction(postId, actionId) {
     PostActions.doPostAction(postId, actionId)(dispatch, getState);
 }
 
-export function setEditingPost(postId = '', commentsCount = 0, refocusId = '', title = '') {
+export function setEditingPost(postId = '', commentCount = 0, refocusId = '', title = '', isRHS = false) {
     return async (doDispatch, doGetState) => {
+        const state = doGetState();
+
+        let canEditNow = true;
+
+        // Only show the modal if we can edit the post now, but allow it to be hidden at any time
+        if (postId && state.entities.general.license.IsLicensed === 'true') {
+            const config = state.entities.general.config;
+
+            if (config.AllowEditPost === Constants.ALLOW_EDIT_POST_NEVER) {
+                canEditNow = false;
+            } else if (config.AllowEditPost === Constants.ALLOW_EDIT_POST_TIME_LIMIT) {
+                const post = Selectors.getPost(state, postId);
+
+                if ((post.create_at + (config.PostEditTimeLimit * 1000)) < Date.now()) {
+                    canEditNow = false;
+                }
+            }
+        }
+
+        if (canEditNow) {
+            doDispatch({
+                type: ActionTypes.SHOW_EDIT_POST_MODAL,
+                data: {postId, commentCount, refocusId, title, isRHS},
+            }, doGetState);
+        }
+
+        return {data: canEditNow};
+    };
+}
+
+export function hideEditPostModal() {
+    return {
+        type: ActionTypes.HIDE_EDIT_POST_MODAL,
+    };
+}
+
+export function deleteAndRemovePost(post) {
+    return async (doDispatch, doGetState) => {
+        const {currentUserId} = doGetState().entities.users;
+
+        let hardDelete = false;
+        if (post.user_id === currentUserId) {
+            hardDelete = true;
+        }
+
+        const {error} = await doDispatch(PostActions.deletePost(post, hardDelete));
+        if (error) {
+            return {error};
+        }
+
+        if (post.id === getSelectedPostId(doGetState())) {
+            dispatch({
+                type: ActionTypes.SELECT_POST,
+                postId: '',
+                channelId: '',
+            });
+        }
+
         doDispatch({
-            type: ActionTypes.SET_EDITING_POST,
-            data: {postId, commentsCount, refocusId, title}
-        }, doGetState);
+            type: PostTypes.REMOVE_POST,
+            data: post,
+        });
+
+        // Needed for search store
+        AppDispatcher.handleViewAction({
+            type: Constants.ActionTypes.REMOVE_POST,
+            post,
+        });
 
         return {data: true};
     };

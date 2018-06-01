@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 /*
 Example User Agents
@@ -79,6 +79,10 @@ export function isAndroidWeb() {
     return isAndroidChrome();
 }
 
+export function isIosClassic() {
+    return isMobileApp() && isIos();
+}
+
 // Returns true if and only if the user is using a Mattermost mobile app. This will return false if the user is using the
 // web browser on a mobile device.
 export function isMobileApp() {
@@ -112,4 +116,14 @@ export function isWindowsApp() {
 
 export function isMacApp() {
     return isDesktopApp() && userAgent.indexOf('Macintosh') !== -1;
+}
+
+export function isWindows7() {
+    const appVersion = navigator.appVersion;
+
+    if (!appVersion) {
+        return false;
+    }
+
+    return (/\bWindows NT 6\.1\b/).test(appVersion);
 }

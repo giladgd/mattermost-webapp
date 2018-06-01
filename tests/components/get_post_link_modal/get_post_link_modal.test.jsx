@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {shallow} from 'enzyme';
@@ -9,7 +9,7 @@ import GetLinkModal from 'components/get_link_modal.jsx';
 
 describe('components/GetPostLinkModal', () => {
     const requiredProps = {
-        currentTeamUrl: 'http://localhost:8065/current-team'
+        currentTeamUrl: 'http://localhost:8065/current-team',
     };
 
     test('should match snapshot with currentTeamUrl passed in', () => {

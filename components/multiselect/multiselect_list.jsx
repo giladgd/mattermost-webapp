@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -7,7 +7,7 @@ import {FormattedMessage} from 'react-intl';
 
 import Constants from 'utils/constants.jsx';
 import {cmdOrCtrlPressed} from 'utils/utils.jsx';
-
+import LoadingScreen from 'components/loading_screen.jsx';
 const KeyCodes = Constants.KeyCodes;
 
 export default class MultiSelectList extends React.Component {
@@ -21,7 +21,7 @@ export default class MultiSelectList extends React.Component {
         this.toSelect = -1;
 
         this.state = {
-            selected: -1
+            selected: -1,
         };
     }
 
@@ -33,7 +33,7 @@ export default class MultiSelectList extends React.Component {
         document.removeEventListener('keydown', this.handleArrowPress);
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         this.setState({selected: this.toSelect});
 
         const options = nextProps.options;
@@ -72,15 +72,15 @@ export default class MultiSelectList extends React.Component {
         }
 
         let selected;
-        switch (e.keyCode) {
-        case KeyCodes.DOWN:
+        switch (e.key) {
+        case KeyCodes.DOWN[0]:
             if (this.state.selected === -1) {
                 selected = 0;
                 break;
             }
             selected = Math.min(this.state.selected + 1, options.length - 1);
             break;
-        case KeyCodes.UP:
+        case KeyCodes.UP[0]:
             if (this.state.selected === -1) {
                 selected = 0;
                 break;
@@ -116,7 +116,16 @@ export default class MultiSelectList extends React.Component {
 
     render() {
         const options = this.props.options;
-
+        if (this.props.loading) {
+            return (
+                <div>
+                    <LoadingScreen
+                        position='absolute'
+                        key='loading'
+                    />
+                </div>
+            );
+        }
         if (options == null || options.length === 0) {
             return (
                 <div
@@ -157,7 +166,7 @@ export default class MultiSelectList extends React.Component {
 MultiSelectList.defaultProps = {
     options: [],
     perPage: 50,
-    onAction: () => null
+    onAction: () => null,
 };
 
 MultiSelectList.propTypes = {
@@ -167,5 +176,6 @@ MultiSelectList.propTypes = {
     perPage: PropTypes.number,
     onPageChange: PropTypes.func,
     onAdd: PropTypes.func,
-    onSelect: PropTypes.func
+    onSelect: PropTypes.func,
+    loading: PropTypes.bool,
 };

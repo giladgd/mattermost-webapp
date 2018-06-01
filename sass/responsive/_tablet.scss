@@ -1,40 +1,6 @@
 @charset 'UTF-8';
 
-@media screen and (max-width: 960px) {
-    .textarea-wrapper {
-        .textbox-preview-link,
-        .textbox-help-link {
-            display: none;
-        }
-    }
-
-    .help__format-text {
-        display: none;
-    }
-
-    .post-right__scroll {
-        .post-create__container {
-            .post-create-body {
-                .icon__emoji_picker {
-                    display: none;
-                    top: -7px;
-                }
-            }
-        }
-    }
-
-    .signup-team__container {
-        &.branded {
-            display: block;
-            margin: 0 auto;
-            max-width: 380px;
-
-            .signup__markdown {
-                display: none;
-            }
-        }
-    }
-
+@media screen and (max-width: 1020px) {
     .sidebar--right {
         @include single-transition(all, .35s, ease);
         @include translateX(100%);
@@ -52,19 +18,6 @@
                 z-index: 5;
             }
         }
-    }
-
-    .backstage-content {
-        margin: 30px;
-        max-width: 100%;
-        padding: 0;
-    }
-
-    .backstage-sidebar {
-        height: auto;
-        padding: 30px 15px 0;
-        position: relative;
-        width: 100%;
     }
 
     .inner-wrap {
@@ -92,19 +45,73 @@
             }
         }
     }
+}
+
+@media screen and (max-width: 960px) {
+    .help__format-text {
+        display: none;
+    }
+
+    .post-right__scroll {
+        .post-create__container {
+            .post-create-body {
+                .icon__emoji_picker {
+                    display: none;
+                    top: -7px;
+                }
+            }
+        }
+    }
+
+    .signup-team__container {
+        &.branded {
+            display: block;
+            margin: 0 auto;
+            max-width: 380px;
+
+            .signup__markdown {
+                display: none;
+            }
+        }
+    }
+
+    .backstage-content {
+        margin: 30px;
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .backstage-sidebar {
+        height: auto;
+        padding: 30px 15px 0;
+        position: relative;
+        width: 100%;
+    }
 
     .post {
         .attachment {
             .attachment__image {
                 &.attachment__image--openraph {
                     max-height: 70px;
-                    max-width: 300px;
+                    max-width: 100%;
 
                     &.loading {
                         height: 70px;
                     }
                 }
             }
+        }
+    }
+}
+
+@media (min-width: 880px) {
+    .post-collapse__show-more {
+        padding-right: 60px;
+    }
+
+    .sidebar--right {
+        .post-collapse__show-more {
+            padding-right: 0;
         }
     }
 }
@@ -117,6 +124,16 @@
 
     .second-bar {
         display: none;
+    }
+
+    .channel-header{
+        .search-bar__container {
+            .search__form {
+                &.focused {
+                    width: 313px;
+                }
+            }
+        }
     }
 
     .sidebar--right {

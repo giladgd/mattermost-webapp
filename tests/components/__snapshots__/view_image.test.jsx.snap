@@ -1,5 +1,78 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`components/ViewImageModal should match snapshot for external file 1`] = `
+<Modal
+  animation={true}
+  autoFocus={true}
+  backdrop={true}
+  bsClass="modal"
+  className="modal-image"
+  dialogClassName="modal-image"
+  dialogComponentClass={[Function]}
+  enforceFocus={true}
+  keyboard={true}
+  manager={
+    ModalManager {
+      "add": [Function],
+      "containers": Array [],
+      "data": Array [],
+      "handleContainerOverflow": true,
+      "hideSiblingNodes": true,
+      "isTopModal": [Function],
+      "modals": Array [],
+      "remove": [Function],
+    }
+  }
+  onHide={[MockFunction]}
+  renderBackdrop={[Function]}
+  restoreFocus={true}
+  show={true}
+>
+  <ModalBody
+    bsClass="modal-body"
+    componentClass="div"
+    modalClassName="modal-image__body"
+    onClick={[MockFunction]}
+  >
+    <div
+      className="modal-image__wrapper"
+      onClick={[MockFunction]}
+    >
+      <div
+        onClick={[Function]}
+        onMouseEnter={[Function]}
+        onMouseLeave={[Function]}
+      >
+        <div
+          className="modal-close"
+          onClick={[MockFunction]}
+        />
+        <div
+          className="modal-image__content"
+        >
+          <LoadingImagePreview
+            containerClass="view-image__loading"
+            loading="Loading"
+            progress={0}
+          />
+        </div>
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
+          fileIndex={0}
+          fileURL="/api/v4/files/undefined?download=1"
+          isExternalFile={true}
+          onGetPublicLink={[Function]}
+          show={false}
+          showPublicLink={true}
+          totalFiles={1}
+        />
+      </div>
+    </div>
+  </ModalBody>
+</Modal>
+`;
+
 exports[`components/ViewImageModal should match snapshot on onModalShown and onModalHidden 1`] = `
 <Modal
   animation={true}
@@ -23,7 +96,7 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -32,11 +105,11 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -45,12 +118,13 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
           <ImagePreview
+            canDownloadFiles={true}
             fileInfo={
               Object {
                 "extension": "gif",
@@ -59,12 +133,15 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
             }
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id_1"
-          filename=""
+          fileURL="/api/v4/files/file_id_1?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={3}
         />
       </div>
@@ -116,7 +193,7 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -125,11 +202,11 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -138,12 +215,13 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
           <ImagePreview
+            canDownloadFiles={true}
             fileInfo={
               Object {
                 "extension": "gif",
@@ -152,12 +230,15 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
             }
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id_1"
-          filename=""
+          fileURL="/api/v4/files/file_id_1?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={3}
         />
       </div>
@@ -186,7 +267,7 @@ exports[`components/ViewImageModal should match snapshot on onModalShown and onM
 </Modal>
 `;
 
-exports[`components/ViewImageModal should match snapshot, loaded with AudioVideoPreview - movie file 1`] = `
+exports[`components/ViewImageModal should match snapshot, loaded 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -209,7 +290,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -218,11 +299,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -231,27 +312,30 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
-          <AudioVideoPreview
+          <ImagePreview
+            canDownloadFiles={true}
             fileInfo={
               Object {
-                "extension": "mov",
+                "extension": "jpg",
                 "id": "file_id",
               }
             }
-            fileUrl="/api/v4/files/file_id"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>
@@ -260,7 +344,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
 </Modal>
 `;
 
-exports[`components/ViewImageModal should match snapshot, loaded with AudioVideoPreview - movie file 2`] = `
+exports[`components/ViewImageModal should match snapshot, loaded and showing footer 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -283,7 +367,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -292,11 +376,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -304,28 +388,31 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
         onMouseLeave={[Function]}
       >
         <div
-          className="modal-close"
-          onClick={[Function]}
+          className="modal-close modal-close--show"
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
-          <AudioVideoPreview
+          <ImagePreview
+            canDownloadFiles={true}
             fileInfo={
               Object {
-                "extension": "m4a",
+                "extension": "jpg",
                 "id": "file_id",
               }
             }
-            fileUrl="/api/v4/files/file_id"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
-          show={false}
+          show={true}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>
@@ -334,7 +421,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with AudioVideo
 </Modal>
 `;
 
-exports[`components/ViewImageModal should match snapshot, loaded with CodePreview 1`] = `
+exports[`components/ViewImageModal should match snapshot, loaded with .js file 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -357,7 +444,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with CodePrevie
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -366,11 +453,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with CodePrevie
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -379,7 +466,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with CodePrevie
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
@@ -394,12 +481,15 @@ exports[`components/ViewImageModal should match snapshot, loaded with CodePrevie
             fileUrl="/api/v4/files/file_id"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>
@@ -408,7 +498,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with CodePrevie
 </Modal>
 `;
 
-exports[`components/ViewImageModal should match snapshot, loaded with FileInfoPreview - other file type 1`] = `
+exports[`components/ViewImageModal should match snapshot, loaded with .m4a file 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -431,7 +521,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with FileInfoPr
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -440,11 +530,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with FileInfoPr
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -453,27 +543,30 @@ exports[`components/ViewImageModal should match snapshot, loaded with FileInfoPr
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
-          <FileInfoPreview
+          <AudioVideoPreview
             fileInfo={
               Object {
-                "extension": "other",
+                "extension": "m4a",
                 "id": "file_id",
               }
             }
             fileUrl="/api/v4/files/file_id"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>
@@ -482,7 +575,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with FileInfoPr
 </Modal>
 `;
 
-exports[`components/ViewImageModal should match snapshot, loaded with ImagePreview 1`] = `
+exports[`components/ViewImageModal should match snapshot, loaded with .mov file 1`] = `
 <Modal
   animation={true}
   autoFocus={true}
@@ -505,7 +598,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with ImagePrevi
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -514,11 +607,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with ImagePrevi
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -527,173 +620,30 @@ exports[`components/ViewImageModal should match snapshot, loaded with ImagePrevi
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
-          <ImagePreview
+          <AudioVideoPreview
             fileInfo={
               Object {
-                "extension": "jpg",
-                "id": "file_id",
-              }
-            }
-          />
-        </div>
-        <ViewImagePopoverBar
-          fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
-          onGetPublicLink={[Function]}
-          show={false}
-          totalFiles={1}
-        />
-      </div>
-    </div>
-  </ModalBody>
-</Modal>
-`;
-
-exports[`components/ViewImageModal should match snapshot, loaded with PDFPreview 1`] = `
-<Modal
-  animation={true}
-  autoFocus={true}
-  backdrop={true}
-  bsClass="modal"
-  className="modal-image"
-  dialogClassName="modal-image"
-  dialogComponentClass={[Function]}
-  enforceFocus={true}
-  keyboard={true}
-  manager={
-    ModalManager {
-      "add": [Function],
-      "containers": Array [],
-      "data": Array [],
-      "handleContainerOverflow": true,
-      "hideSiblingNodes": true,
-      "isTopModal": [Function],
-      "modals": Array [],
-      "remove": [Function],
-    }
-  }
-  onHide={[Function]}
-  renderBackdrop={[Function]}
-  restoreFocus={true}
-  show={true}
->
-  <ModalBody
-    bsClass="modal-body"
-    componentClass="div"
-    modalClassName="modal-image__body"
-    onClick={[Function]}
-  >
-    <div
-      className="modal-image__wrapper"
-      onClick={[Function]}
-    >
-      <div
-        onClick={[Function]}
-        onMouseEnter={[Function]}
-        onMouseLeave={[Function]}
-      >
-        <div
-          className="modal-close"
-          onClick={[Function]}
-        />
-        <div
-          className="modal-image__content"
-        >
-          <PDFPreview
-            fileInfo={
-              Object {
-                "extension": "pdf",
+                "extension": "mov",
                 "id": "file_id",
               }
             }
             fileUrl="/api/v4/files/file_id"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
-          totalFiles={1}
-        />
-      </div>
-    </div>
-  </ModalBody>
-</Modal>
-`;
-
-exports[`components/ViewImageModal should match snapshot, loaded with ViewImagePopoverBar 1`] = `
-<Modal
-  animation={true}
-  autoFocus={true}
-  backdrop={true}
-  bsClass="modal"
-  className="modal-image"
-  dialogClassName="modal-image"
-  dialogComponentClass={[Function]}
-  enforceFocus={true}
-  keyboard={true}
-  manager={
-    ModalManager {
-      "add": [Function],
-      "containers": Array [],
-      "data": Array [],
-      "handleContainerOverflow": true,
-      "hideSiblingNodes": true,
-      "isTopModal": [Function],
-      "modals": Array [],
-      "remove": [Function],
-    }
-  }
-  onHide={[Function]}
-  renderBackdrop={[Function]}
-  restoreFocus={true}
-  show={true}
->
-  <ModalBody
-    bsClass="modal-body"
-    componentClass="div"
-    modalClassName="modal-image__body"
-    onClick={[Function]}
-  >
-    <div
-      className="modal-image__wrapper"
-      onClick={[Function]}
-    >
-      <div
-        onClick={[Function]}
-        onMouseEnter={[Function]}
-        onMouseLeave={[Function]}
-      >
-        <div
-          className="modal-close"
-          onClick={[Function]}
-        />
-        <div
-          className="modal-image__content"
-        >
-          <ImagePreview
-            fileInfo={
-              Object {
-                "extension": "jpg",
-                "id": "file_id",
-              }
-            }
-          />
-        </div>
-        <ViewImagePopoverBar
-          fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
-          onGetPublicLink={[Function]}
-          show={false}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>
@@ -725,7 +675,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with footer 1`]
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -734,11 +684,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with footer 1`]
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -747,12 +697,13 @@ exports[`components/ViewImageModal should match snapshot, loaded with footer 1`]
       >
         <div
           className="modal-close modal-close--show"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
           <ImagePreview
+            canDownloadFiles={true}
             fileInfo={
               Object {
                 "extension": "gif",
@@ -761,12 +712,15 @@ exports[`components/ViewImageModal should match snapshot, loaded with footer 1`]
             }
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id_1"
-          filename=""
+          fileURL="/api/v4/files/file_id_1?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={true}
+          showPublicLink={true}
           totalFiles={3}
         />
       </div>
@@ -795,6 +749,83 @@ exports[`components/ViewImageModal should match snapshot, loaded with footer 1`]
 </Modal>
 `;
 
+exports[`components/ViewImageModal should match snapshot, loaded with image 1`] = `
+<Modal
+  animation={true}
+  autoFocus={true}
+  backdrop={true}
+  bsClass="modal"
+  className="modal-image"
+  dialogClassName="modal-image"
+  dialogComponentClass={[Function]}
+  enforceFocus={true}
+  keyboard={true}
+  manager={
+    ModalManager {
+      "add": [Function],
+      "containers": Array [],
+      "data": Array [],
+      "handleContainerOverflow": true,
+      "hideSiblingNodes": true,
+      "isTopModal": [Function],
+      "modals": Array [],
+      "remove": [Function],
+    }
+  }
+  onHide={[MockFunction]}
+  renderBackdrop={[Function]}
+  restoreFocus={true}
+  show={true}
+>
+  <ModalBody
+    bsClass="modal-body"
+    componentClass="div"
+    modalClassName="modal-image__body"
+    onClick={[MockFunction]}
+  >
+    <div
+      className="modal-image__wrapper"
+      onClick={[MockFunction]}
+    >
+      <div
+        onClick={[Function]}
+        onMouseEnter={[Function]}
+        onMouseLeave={[Function]}
+      >
+        <div
+          className="modal-close"
+          onClick={[MockFunction]}
+        />
+        <div
+          className="modal-image__content"
+        >
+          <ImagePreview
+            canDownloadFiles={true}
+            fileInfo={
+              Object {
+                "extension": "jpg",
+                "id": "file_id",
+              }
+            }
+          />
+        </div>
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
+          fileIndex={0}
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
+          onGetPublicLink={[Function]}
+          show={false}
+          showPublicLink={true}
+          totalFiles={1}
+        />
+      </div>
+    </div>
+  </ModalBody>
+</Modal>
+`;
+
 exports[`components/ViewImageModal should match snapshot, loaded with left and right arrows 1`] = `
 <Modal
   animation={true}
@@ -818,7 +849,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -827,11 +858,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -840,12 +871,13 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
           <ImagePreview
+            canDownloadFiles={true}
             fileInfo={
               Object {
                 "extension": "gif",
@@ -854,12 +886,15 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
             }
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id_1"
-          filename=""
+          fileURL="/api/v4/files/file_id_1?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={3}
         />
       </div>
@@ -911,7 +946,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -920,11 +955,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -933,7 +968,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
@@ -948,12 +983,15 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
             fileUrl="/api/v4/files/file_id_2"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={1}
-          fileURL="/api/v4/files/file_id_2"
-          filename=""
+          fileURL="/api/v4/files/file_id_2?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={3}
         />
       </div>
@@ -1005,7 +1043,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -1014,11 +1052,11 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -1027,7 +1065,7 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
@@ -1042,12 +1080,15 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
             fileUrl="/api/v4/files/file_id_2"
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={1}
-          fileURL="/api/v4/files/file_id_2"
-          filename=""
+          fileURL="/api/v4/files/file_id_2?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={3}
         />
       </div>
@@ -1076,6 +1117,83 @@ exports[`components/ViewImageModal should match snapshot, loaded with left and r
 </Modal>
 `;
 
+exports[`components/ViewImageModal should match snapshot, loaded with other file 1`] = `
+<Modal
+  animation={true}
+  autoFocus={true}
+  backdrop={true}
+  bsClass="modal"
+  className="modal-image"
+  dialogClassName="modal-image"
+  dialogComponentClass={[Function]}
+  enforceFocus={true}
+  keyboard={true}
+  manager={
+    ModalManager {
+      "add": [Function],
+      "containers": Array [],
+      "data": Array [],
+      "handleContainerOverflow": true,
+      "hideSiblingNodes": true,
+      "isTopModal": [Function],
+      "modals": Array [],
+      "remove": [Function],
+    }
+  }
+  onHide={[MockFunction]}
+  renderBackdrop={[Function]}
+  restoreFocus={true}
+  show={true}
+>
+  <ModalBody
+    bsClass="modal-body"
+    componentClass="div"
+    modalClassName="modal-image__body"
+    onClick={[MockFunction]}
+  >
+    <div
+      className="modal-image__wrapper"
+      onClick={[MockFunction]}
+    >
+      <div
+        onClick={[Function]}
+        onMouseEnter={[Function]}
+        onMouseLeave={[Function]}
+      >
+        <div
+          className="modal-close"
+          onClick={[MockFunction]}
+        />
+        <div
+          className="modal-image__content"
+        >
+          <Connect(FileInfoPreview)
+            fileInfo={
+              Object {
+                "extension": "other",
+                "id": "file_id",
+              }
+            }
+            fileUrl="/api/v4/files/file_id"
+          />
+        </div>
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
+          fileIndex={0}
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
+          onGetPublicLink={[Function]}
+          show={false}
+          showPublicLink={true}
+          totalFiles={1}
+        />
+      </div>
+    </div>
+  </ModalBody>
+</Modal>
+`;
+
 exports[`components/ViewImageModal should match snapshot, loading 1`] = `
 <Modal
   animation={true}
@@ -1099,7 +1217,7 @@ exports[`components/ViewImageModal should match snapshot, loading 1`] = `
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={true}
@@ -1108,11 +1226,11 @@ exports[`components/ViewImageModal should match snapshot, loading 1`] = `
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -1121,22 +1239,26 @@ exports[`components/ViewImageModal should match snapshot, loading 1`] = `
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
           <LoadingImagePreview
+            containerClass="view-image__loading"
             loading="Loading"
             progress={0}
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>
@@ -1168,7 +1290,7 @@ exports[`components/ViewImageModal should match snapshot, modal not shown 1`] = 
       "remove": [Function],
     }
   }
-  onHide={[Function]}
+  onHide={[MockFunction]}
   renderBackdrop={[Function]}
   restoreFocus={true}
   show={false}
@@ -1177,11 +1299,11 @@ exports[`components/ViewImageModal should match snapshot, modal not shown 1`] = 
     bsClass="modal-body"
     componentClass="div"
     modalClassName="modal-image__body"
-    onClick={[Function]}
+    onClick={[MockFunction]}
   >
     <div
       className="modal-image__wrapper"
-      onClick={[Function]}
+      onClick={[MockFunction]}
     >
       <div
         onClick={[Function]}
@@ -1190,22 +1312,26 @@ exports[`components/ViewImageModal should match snapshot, modal not shown 1`] = 
       >
         <div
           className="modal-close"
-          onClick={[Function]}
+          onClick={[MockFunction]}
         />
         <div
           className="modal-image__content"
         >
           <LoadingImagePreview
+            containerClass="view-image__loading"
             loading="Loading"
             progress={0}
           />
         </div>
-        <ViewImagePopoverBar
+        <Connect(PopoverBar)
+          canDownloadFiles={true}
+          enablePublicLink={true}
           fileIndex={0}
-          fileURL="/api/v4/files/file_id"
-          filename=""
+          fileURL="/api/v4/files/file_id?download=1"
+          isExternalFile={false}
           onGetPublicLink={[Function]}
           show={false}
+          showPublicLink={true}
           totalFiles={1}
         />
       </div>

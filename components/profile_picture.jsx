@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -7,7 +7,7 @@ import {OverlayTrigger} from 'react-bootstrap';
 
 import Pluggable from 'plugins/pluggable';
 
-import ProfilePopover from './profile_popover.jsx';
+import ProfilePopover from './profile_popover';
 import StatusIcon from './status_icon.jsx';
 
 export default class ProfilePicture extends React.PureComponent {
@@ -15,7 +15,7 @@ export default class ProfilePicture extends React.PureComponent {
         width: '36',
         height: '36',
         isRHS: false,
-        hasMention: false
+        hasMention: false,
     };
 
     static propTypes = {
@@ -26,7 +26,7 @@ export default class ProfilePicture extends React.PureComponent {
         user: PropTypes.object,
         isBusy: PropTypes.bool,
         isRHS: PropTypes.bool,
-        hasMention: PropTypes.bool
+        hasMention: PropTypes.bool,
     };
 
     hideProfilePopover = () => {
@@ -58,6 +58,7 @@ export default class ProfilePicture extends React.PureComponent {
                     <span className='status-wrapper'>
                         <img
                             className='more-modal__image'
+                            alt={`${this.props.user.username || 'user'} profile image`}
                             width={this.props.width}
                             height={this.props.width}
                             src={this.props.src}
@@ -71,6 +72,7 @@ export default class ProfilePicture extends React.PureComponent {
             <span className='status-wrapper'>
                 <img
                     className='more-modal__image'
+                    alt={'user profile image'}
                     width={this.props.width}
                     height={this.props.width}
                     src={this.props.src}

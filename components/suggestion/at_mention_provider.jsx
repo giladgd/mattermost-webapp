@@ -1,15 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
-
 import XRegExp from 'xregexp';
 
 import {autocompleteUsersInChannel} from 'actions/user_actions.jsx';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import {ActionTypes, Constants} from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
 
@@ -155,7 +153,7 @@ export default class AtMentionProvider extends Provider {
                     matchedPretext: `@${captured[1]}`,
                     terms: mentions,
                     items: users,
-                    component: AtMentionSuggestion
+                    component: AtMentionSuggestion,
                 });
             }
         );

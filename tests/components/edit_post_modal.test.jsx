@@ -1,38 +1,46 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 import React from 'react';
 import {shallow} from 'enzyme';
 
 import {mountWithIntl} from 'tests/helpers/intl-test-helper.jsx';
-import Constants from 'utils/constants';
-
+import {Constants, ModalIdentifiers} from 'utils/constants';
+import DeletePostModal from 'components/delete_post_modal';
 import EditPostModal from 'components/edit_post_modal/edit_post_modal.jsx';
 
 jest.useFakeTimers();
+
+jest.mock('actions/global_actions.jsx', () => ({
+    emitClearSuggestions: jest.fn(),
+}));
 
 function createEditPost({ctrlSend, config, license, editingPost, actions} = {}) {
     const ctrlSendProp = ctrlSend || false;
     const configProp = config || {
         AllowEditPost: 'allways',
         PostEditTimeLimit: 300,
-        EnableEmojiPicker: 'true'
+        EnableEmojiPicker: 'true',
     };
     const licenseProp = license || {
-        IsLicensed: 'false'
+        IsLicensed: 'false',
     };
     const editingPostProp = editingPost || {
         postId: '123',
         post: {
             id: '123',
             message: 'test',
-            channel_id: '5'
+            channel_id: '5',
         },
-        commentsCount: 3,
+        commentCount: 3,
         refocusId: 'test',
-        title: 'test'
+        show: true,
+        title: 'test',
     };
     const actionsProp = actions || {
         editPost: jest.fn(),
         addMessageIntoHistory: jest.fn(),
-        setEditingPost: jest.fn()
+        hideEditPostModal: jest.fn(),
+        openModal: jest.fn(),
     };
     return (
         <EditPostModal
@@ -41,11 +49,12 @@ function createEditPost({ctrlSend, config, license, editingPost, actions} = {}) 
             license={licenseProp}
             editingPost={editingPostProp}
             actions={actionsProp}
+            maxPostSize={Constants.DEFAULT_CHARACTER_LIMIT}
         />
     );
 }
 
-describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
+describe('components/EditPostModal', () => {
     it('should match with default config', () => {
         const wrapper = shallow(createEditPost());
         expect(wrapper).toMatchSnapshot();
@@ -55,119 +64,65 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         const config = {
             AllowEditPost: 'allways',
             PostEditTimeLimit: 300,
-            EnableEmojiPicker: 'false'
+            EnableEmojiPicker: 'false',
         };
         const wrapper = shallow(createEditPost({config}));
         expect(wrapper).toMatchSnapshot();
     });
 
-    it('should match without editingPost', () => {
-        const wrapper = shallow(createEditPost({editingPost: {}}));
-        expect(wrapper).toMatchSnapshot();
-    });
-
-    it('should call editPost, addMessageIntoHistory and setEditingPost on save actions', () => {
+    it('should not call openModal on empty edited message but with attachment', () => {
         const actions = {
             editPost: jest.fn(),
             addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
+        };
+        const editingPost = {
+            postId: '123',
+            post: {
+                id: '123',
+                message: 'test',
+                channel_id: '5',
+                file_ids: ['file_id_1'],
+            },
+            commentCount: 3,
+            refocusId: 'test',
+            show: true,
+            title: 'test',
+        };
+
+        var wrapper = shallow(createEditPost({actions, editingPost}));
+        var instance = wrapper.instance();
+        wrapper.setState({editText: ''});
+        instance.handleEdit();
+
+        expect(actions.openModal).not.toHaveBeenCalled();
+        expect(actions.addMessageIntoHistory).toBeCalled();
+        expect(actions.editPost).toBeCalled();
+    });
+
+    it('should call editPost, addMessageIntoHistory and hideEditPostModal on save', async () => {
+        const actions = {
+            editPost: jest.fn(),
+            addMessageIntoHistory: jest.fn(),
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
         };
         const wrapper = shallow(createEditPost({actions}));
 
         expect(actions.addMessageIntoHistory).not.toBeCalled();
         expect(actions.editPost).not.toBeCalled();
+
         wrapper.setState({editText: 'new message'});
-        wrapper.find('.btn-primary').simulate('click');
+        await wrapper.find('.btn-primary').simulate('click');
+
         expect(actions.addMessageIntoHistory).toBeCalledWith('new message');
         expect(actions.editPost).toBeCalledWith({
             message: 'new message',
             id: '123',
-            channel_id: '5'
+            channel_id: '5',
         });
-    });
-
-    it('should not allow to edit when config and license restrict edition', () => {
-        const config = {
-            AllowEditPost: 'never',
-            PostEditTimeLimit: 300,
-            EnableEmojiPicker: 'false'
-        };
-        const license = {
-            IsLicensed: 'true'
-        };
-
-        const wrapper = shallow(createEditPost({config, license}));
-        expect(wrapper).toMatchSnapshot();
-    });
-
-    it('should not allow to edit when have license and the post is after the editing time limit', () => {
-        const config = {
-            AllowEditPost: 'time_limit',
-            PostEditTimeLimit: 300,
-            EnableEmojiPicker: 'false'
-        };
-        const license = {
-            IsLicensed: 'true'
-        };
-        const editingPost = {
-            postId: '123',
-            post: {
-                id: '123',
-                message: 'test',
-                channel_id: '5',
-                create_at: new Date() - (350 * 1000)
-            },
-            commentsCount: 3,
-            refocusId: '#test',
-            title: 'test'
-        };
-        const wrapper = shallow(createEditPost({config, license, editingPost}));
-        expect(wrapper).toMatchSnapshot();
-    });
-
-    it('should allow to edit when have license and the post is before the editing time limit', () => {
-        const config = {
-            AllowEditPost: 'time_limit',
-            PostEditTimeLimit: 300,
-            EnableEmojiPicker: 'false'
-        };
-        const license = {
-            IsLicensed: 'true'
-        };
-        const editingPost = {
-            postId: '123',
-            post: {
-                id: '123',
-                message: 'test',
-                channel_id: '5',
-                create_at: new Date() - (150 * 1000)
-            },
-            commentsCount: 3,
-            refocusId: '#test',
-            title: 'test'
-        };
-        const wrapper = shallow(createEditPost({config, license, editingPost}));
-        expect(wrapper).toMatchSnapshot();
-    });
-
-    it('should allow to edit when have license and always allow to edit', () => {
-        const license = {
-            IsLicensed: 'true'
-        };
-        const editingPost = {
-            postId: '123',
-            post: {
-                id: '123',
-                message: 'test',
-                channel_id: '5',
-                create_at: new Date() - (150 * 1000)
-            },
-            commentsCount: 3,
-            refocusId: '#test',
-            title: 'test'
-        };
-        const wrapper = shallow(createEditPost({license, editingPost}));
-        expect(wrapper).toMatchSnapshot();
+        expect(actions.hideEditPostModal).toBeCalled();
     });
 
     it('should show emojis on emojis click', () => {
@@ -238,7 +193,7 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         expect(wrapper.state().editText).toBe('test :-1: ');
     });
 
-    it('should set the focus and recalcule the size of the edit box enter end', () => {
+    it('should set the focus and recalculate the size of the edit box after entering', () => {
         const wrapper = mountWithIntl(createEditPost());
         const instance = wrapper.instance();
         const ref = wrapper.ref('editbox');
@@ -251,7 +206,7 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         expect(ref.recalculateSize).toBeCalled();
     });
 
-    it('should hide the preview on exit start', () => {
+    it('should hide the preview when exiting', () => {
         const wrapper = mountWithIntl(createEditPost());
         const instance = wrapper.instance();
         const ref = wrapper.ref('editbox');
@@ -261,77 +216,98 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         expect(ref.hidePreview).toBeCalled();
     });
 
-    it('should hide when confirm the edition and the message is not edited', () => {
+    it('should close without saving when post text is not changed', () => {
         const actions = {
             editPost: jest.fn(),
             addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
         };
         const wrapper = shallow(createEditPost({actions}));
         const instance = wrapper.instance();
-        expect(wrapper.state().hidding).toBe(false);
-        wrapper.setState({editText: 'test'});
+
+        expect(actions.hideEditPostModal).not.toBeCalled();
+
         instance.handleEdit();
-        expect(wrapper.state().hidding).toBe(true);
+
         expect(actions.addMessageIntoHistory).not.toBeCalled();
         expect(actions.editPost).not.toBeCalled();
+        expect(actions.hideEditPostModal).toBeCalled();
     });
 
-    it('should hide when confirm the edition and the message is empty', () => {
+    it('should close and show delete confirmation modal when message is empty', async () => {
         const actions = {
             editPost: jest.fn(),
             addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
         };
         var wrapper = shallow(createEditPost({actions}));
         var instance = wrapper.instance();
-        expect(wrapper.state().hidding).toBe(false);
+
+        expect(actions.hideEditPostModal).not.toBeCalled();
+
         wrapper.setState({editText: ''});
         instance.handleEdit();
-        expect(wrapper.state().hidding).toBe(true);
+
+        expect(actions.hideEditPostModal).toBeCalled();
+        expect(actions.openModal).toHaveBeenCalledWith({
+            ModalId: ModalIdentifiers.DELETE_POST,
+            dialogType: DeletePostModal,
+            dialogProps: {
+                post: {
+                    id: '123',
+                    message: 'test',
+                    channel_id: '5',
+                },
+                commentCount: 3,
+            },
+        });
         expect(actions.addMessageIntoHistory).not.toBeCalled();
         expect(actions.editPost).not.toBeCalled();
 
+        actions.hideEditPostModal.mockClear();
+
         wrapper = shallow(createEditPost({actions}));
         instance = wrapper.instance();
-        expect(wrapper.state().hidding).toBe(false);
+
+        expect(actions.hideEditPostModal).not.toBeCalled();
+
         wrapper.setState({editText: '    '});
-        instance.handleEdit();
-        expect(wrapper.state().hidding).toBe(true);
+        await instance.handleEdit();
+
+        expect(actions.hideEditPostModal).toBeCalled();
+        expect(actions.openModal).toHaveBeenCalled();
         expect(actions.addMessageIntoHistory).not.toBeCalled();
         expect(actions.editPost).not.toBeCalled();
     });
 
-    it('should scroll up when editPost return data', async () => {
+    it('should scroll page after successfully editing post', async () => {
         const actions = {
-            editPost: jest.fn((data) => data),
+            editPost: jest.fn((data) => {
+                return {data};
+            }),
             addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
         };
         global.scrollTo = jest.fn();
         const wrapper = shallow(createEditPost({actions}));
         const instance = wrapper.instance();
-        expect(wrapper.state().hidding).toBe(false);
+
         wrapper.setState({editText: 'new text'});
         await instance.handleEdit();
+
         expect(global.scrollTo).toBeCalledWith(0, 0);
     });
 
-    it('should on change value in the textbox set the state', () => {
+    it('should update state after changing value in textbox', () => {
         const wrapper = shallow(createEditPost());
         const instance = wrapper.instance();
-        expect(wrapper.state().hidding).toBe(false);
-        wrapper.setState({editText: ''});
-        instance.handleChange({target: {value: 'test'}});
-        expect(wrapper.state().editText).toBe('test');
-    });
 
-    it('should on change value in the textbox set the state', () => {
-        const wrapper = shallow(createEditPost());
-        const instance = wrapper.instance();
-        expect(wrapper.state().hidding).toBe(false);
         wrapper.setState({editText: ''});
         instance.handleChange({target: {value: 'test'}});
+
         expect(wrapper.state().editText).toBe('test');
     });
 
@@ -339,44 +315,37 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         const actions = {
             editPost: jest.fn((data) => data),
             addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
         };
         const wrapper = shallow(createEditPost({actions}));
         const instance = wrapper.instance();
-        wrapper.setState({editText: 'test', postError: 'test', errorClass: 'test', hidding: true, showEmojiPicker: true});
-        instance.handleExited();
-        expect(wrapper.state()).toEqual({editText: '', postError: '', errorClass: null, hidding: false, showEmojiPicker: false});
-        expect(actions.setEditingPost).toBeCalledWith();
-    });
 
-    it('should clear data on exit', () => {
-        const actions = {
-            editPost: jest.fn((data) => data),
-            addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
-        };
-        const wrapper = shallow(createEditPost({actions}));
-        const instance = wrapper.instance();
-        wrapper.setState({editText: 'test', postError: 'test', errorClass: 'test', hidding: true, showEmojiPicker: true});
+        wrapper.setState({editText: 'test', postError: 'test', errorClass: 'test', showEmojiPicker: true});
         instance.handleExited();
+
         jest.runAllTimers();
-        expect(wrapper.state()).toEqual({editText: '', postError: '', errorClass: null, hidding: false, showEmojiPicker: false});
-        expect(actions.setEditingPost).toBeCalledWith();
+        expect(wrapper.state()).toEqual({editText: '', postError: '', errorClass: null, showEmojiPicker: false});
     });
 
     it('should focus element on exit based on refocusId', () => {
         const actions = {
             editPost: jest.fn((data) => data),
             addMessageIntoHistory: jest.fn(),
-            setEditingPost: jest.fn()
+            hideEditPostModal: jest.fn(),
+            openModal: jest.fn(),
         };
         const wrapper = shallow(createEditPost({actions}));
         const instance = wrapper.instance();
+
         const elem = document.createElement('INPUT');
         elem.setAttribute('id', 'test');
         elem.focus = jest.fn();
         document.body.appendChild(elem);
+
+        instance.handleHide();
         instance.handleExited();
+
         jest.runAllTimers();
         expect(elem.focus).toBeCalled();
     });
@@ -387,9 +356,9 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         instance.handleEdit = jest.fn();
         instance.handleKeyDown({keyCode: 1, ctrlKey: true});
         expect(instance.handleEdit).not.toBeCalled();
-        instance.handleKeyDown({keyCode: Constants.KeyCodes.ENTER, ctrlKey: false});
+        instance.handleKeyDown({key: Constants.KeyCodes.ENTER[0], keyCode: Constants.KeyCodes.ENTER[1], ctrlKey: false});
         expect(instance.handleEdit).not.toBeCalled();
-        instance.handleKeyDown({keyCode: Constants.KeyCodes.ENTER, ctrlKey: true});
+        instance.handleKeyDown({key: Constants.KeyCodes.ENTER[0], keyCode: Constants.KeyCodes.ENTER[1], ctrlKey: true});
         expect(instance.handleEdit).toBeCalled();
 
         wrapper = shallow(createEditPost({ctrlSend: false}));
@@ -397,9 +366,9 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         instance.handleEdit = jest.fn();
         instance.handleKeyDown({keyCode: 1, ctrlKey: true});
         expect(instance.handleEdit).not.toBeCalled();
-        instance.handleKeyDown({keyCode: Constants.KeyCodes.ENTER, ctrlKey: false});
+        instance.handleKeyDown({key: Constants.KeyCodes.ENTER[0], keyCode: Constants.KeyCodes.ENTER[1], ctrlKey: false});
         expect(instance.handleEdit).not.toBeCalled();
-        instance.handleKeyDown({keyCode: Constants.KeyCodes.ENTER, ctrlKey: true});
+        instance.handleKeyDown({key: Constants.KeyCodes.ENTER[0], keyCode: Constants.KeyCodes.ENTER[1], ctrlKey: true});
         expect(instance.handleEdit).not.toBeCalled();
     });
 
@@ -412,10 +381,10 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         instance.handleEditKeyPress({which: 1, ctrlKey: true, preventDefault, shiftKey: false, altKey: false});
         expect(instance.handleEdit).not.toBeCalled();
         expect(preventDefault).not.toBeCalled();
-        instance.handleEditKeyPress({which: Constants.KeyCodes.ENTER, ctrlKey: false, preventDefault, shiftKey: false, altKey: false});
+        instance.handleEditKeyPress({key: Constants.KeyCodes.ENTER[0], which: Constants.KeyCodes.ENTER[1], ctrlKey: false, preventDefault, shiftKey: false, altKey: false});
         expect(instance.handleEdit).not.toBeCalled();
         expect(preventDefault).not.toBeCalled();
-        instance.handleEditKeyPress({which: Constants.KeyCodes.ENTER, ctrlKey: true, preventDefault, shiftKey: false, altKey: false});
+        instance.handleEditKeyPress({key: Constants.KeyCodes.ENTER[0], which: Constants.KeyCodes.ENTER[1], ctrlKey: true, preventDefault, shiftKey: false, altKey: false});
         expect(instance.handleEdit).toBeCalled();
         expect(preventDefault).toBeCalled();
 
@@ -427,13 +396,13 @@ describe('comoponents/edit_post_modal/edit_post_modal.jsx', () => {
         instance.handleEditKeyPress({which: 1, ctrlKey: true, preventDefault, shiftKey: false, altKey: false});
         expect(instance.handleEdit).not.toBeCalled();
         expect(preventDefault).not.toBeCalled();
-        instance.handleEditKeyPress({which: Constants.KeyCodes.ENTER, ctrlKey: true, preventDefault, shiftKey: true, altKey: false});
+        instance.handleEditKeyPress({key: Constants.KeyCodes.ENTER[0], which: Constants.KeyCodes.ENTER[1], ctrlKey: true, preventDefault, shiftKey: true, altKey: false});
         expect(instance.handleEdit).not.toBeCalled();
         expect(preventDefault).not.toBeCalled();
-        instance.handleEditKeyPress({which: Constants.KeyCodes.ENTER, ctrlKey: true, preventDefault, shiftKey: false, altKey: true});
+        instance.handleEditKeyPress({key: Constants.KeyCodes.ENTER[0], which: Constants.KeyCodes.ENTER[1], ctrlKey: true, preventDefault, shiftKey: false, altKey: true});
         expect(instance.handleEdit).not.toBeCalled();
         expect(preventDefault).not.toBeCalled();
-        instance.handleEditKeyPress({which: Constants.KeyCodes.ENTER, ctrlKey: true, preventDefault, shiftKey: false, altKey: false});
+        instance.handleEditKeyPress({key: Constants.KeyCodes.ENTER[0], ctrlKey: true, preventDefault, shiftKey: false, altKey: false});
         expect(instance.handleEdit).toBeCalled();
         expect(preventDefault).toBeCalled();
     });

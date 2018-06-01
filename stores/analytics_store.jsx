@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import EventEmitter from 'events';
 
@@ -16,15 +16,15 @@ class AnalyticsStoreClass extends EventEmitter {
         store.subscribe(() => {
             const newEntities = store.getState().entities.admin;
 
-            if (newEntities.analytics !== this.entities.analytics) {
-                this.emitChange();
-            }
-
-            if (newEntities.teamAnalytics !== this.entities.teamAnalytics) {
-                this.emitChange();
-            }
-
+            const entities = this.entities;
             this.entities = newEntities;
+
+            const analyticsChanged = newEntities.analytics !== entities.analytics;
+            const teamAnalyticsChanged = newEntities.teamAnalytics !== entities.teamAnalytics;
+
+            if (analyticsChanged || teamAnalyticsChanged) {
+                this.emitChange();
+            }
         });
     }
 

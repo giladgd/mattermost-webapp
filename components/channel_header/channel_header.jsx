@@ -1,47 +1,72 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {OverlayTrigger, Popover, Tooltip} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
+import {Permissions} from 'mattermost-redux/constants';
 
 import 'bootstrap';
 
-import * as GlobalActions from 'actions/global_actions.jsx';
-import {getFlaggedPosts, getPinnedPosts} from 'actions/post_actions.jsx';
-import * as WebrtcActions from 'actions/webrtc_actions.jsx';
-import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
-import SearchStore from 'stores/search_store.jsx';
-import WebrtcStore from 'stores/webrtc_store.jsx';
+import {isChannelMuted} from 'mattermost-redux/utils/channel_utils';
 
-import * as ChannelUtils from 'utils/channel_utils.jsx';
-import {ActionTypes, Constants, RHSStates, UserStatuses} from 'utils/constants.jsx';
+import * as GlobalActions from 'actions/global_actions.jsx';
+import * as WebrtcActions from 'actions/webrtc_actions.jsx';
+import WebrtcStore from 'stores/webrtc_store.jsx';
+import TeamStore from 'stores/team_store.jsx';
+import ChannelStore from 'stores/channel_store.jsx';
+
+import MessageWrapper from 'components/message_wrapper.jsx';
+import {Constants, NotificationLevels, RHSStates, UserStatuses, ModalIdentifiers} from 'utils/constants.jsx';
+import messageHtmlToComponent from 'utils/message_html_to_component';
 import * as TextFormatting from 'utils/text_formatting.jsx';
 import {getSiteURL} from 'utils/url.jsx';
 import * as Utils from 'utils/utils.jsx';
-
 import ChannelInfoModal from 'components/channel_info_modal';
 import ChannelInviteModal from 'components/channel_invite_modal';
-import ChannelMembersModal from 'components/channel_members_modal.jsx';
-import ChannelNotificationsModal from 'components/channel_notifications_modal.jsx';
+import ChannelMembersModal from 'components/channel_members_modal';
+import ChannelNotificationsModal from 'components/channel_notifications_modal';
+import ConvertChannelModal from 'components/convert_channel_modal';
 import DeleteChannelModal from 'components/delete_channel_modal';
 import EditChannelHeaderModal from 'components/edit_channel_header_modal';
 import EditChannelPurposeModal from 'components/edit_channel_purpose_modal';
-import MessageWrapper from 'components/message_wrapper.jsx';
+import MoreDirectChannels from 'components/more_direct_channels';
 import PopoverListMembers from 'components/popover_list_members';
 import RenameChannelModal from 'components/rename_channel_modal';
-import NavbarSearchBox from 'components/search_bar.jsx';
+import SearchBar from 'components/search_bar';
 import StatusIcon from 'components/status_icon.jsx';
-import ToggleModalButton from 'components/toggle_modal_button.jsx';
+import FlagIcon from 'components/svg/flag_icon';
+import MentionsIcon from 'components/svg/mentions_icon';
+import PinIcon from 'components/svg/pin_icon';
+import SearchIcon from 'components/svg/search_icon';
+import ToggleModalButtonRedux from 'components/toggle_modal_button_redux';
+import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
+import TeamPermissionGate from 'components/permissions_gates/team_permission_gate';
 
-const PreReleaseFeatures = Constants.PRE_RELEASE_FEATURES;
+import Pluggable from 'plugins/pluggable';
+
+import HeaderIconWrapper from './components/header_icon_wrapper';
+
+const SEARCH_BAR_MINIMUM_WINDOW_SIZE = 1140;
 
 export default class ChannelHeader extends React.Component {
     static propTypes = {
+        actions: PropTypes.shape({
+            leaveChannel: PropTypes.func.isRequired,
+            favoriteChannel: PropTypes.func.isRequired,
+            unfavoriteChannel: PropTypes.func.isRequired,
+            showFlaggedPosts: PropTypes.func.isRequired,
+            showPinnedPosts: PropTypes.func.isRequired,
+            showMentions: PropTypes.func.isRequired,
+            closeRightHandSide: PropTypes.func.isRequired,
+            updateRhsState: PropTypes.func.isRequired,
+            openModal: PropTypes.func.isRequired,
+            getCustomEmojisInText: PropTypes.func.isRequired,
+            updateChannelNotifyProps: PropTypes.func.isRequired,
+        }).isRequired,
         channel: PropTypes.object.isRequired,
         channelMember: PropTypes.object.isRequired,
-        teamMember: PropTypes.object.isRequired,
         isFavorite: PropTypes.bool,
         isDefault: PropTypes.bool,
         currentUser: PropTypes.object.isRequired,
@@ -49,64 +74,67 @@ export default class ChannelHeader extends React.Component {
         dmUserStatus: PropTypes.object,
         dmUserIsInCall: PropTypes.bool,
         enableFormatting: PropTypes.bool.isRequired,
-        actions: PropTypes.shape({
-            leaveChannel: PropTypes.func.isRequired,
-            favoriteChannel: PropTypes.func.isRequired,
-            unfavoriteChannel: PropTypes.func.isRequired
-        }).isRequired
-    }
+        isReadOnly: PropTypes.bool,
+        rhsState: PropTypes.oneOf(
+            Object.values(RHSStates)
+        ),
+        enableWebrtc: PropTypes.bool.isRequired,
+    };
 
     static defaultProps = {
         dmUser: {},
-        dmUserStatus: {status: UserStatuses.OFFLINE}
-    }
+        dmUserStatus: {status: UserStatuses.OFFLINE},
+    };
 
     constructor(props) {
         super(props);
 
+        const showSearchBar = Utils.windowWidth() > SEARCH_BAR_MINIMUM_WINDOW_SIZE;
         this.state = {
+            showSearchBar,
             showEditChannelHeaderModal: false,
             showEditChannelPurposeModal: false,
             showMembersModal: false,
             showRenameChannelModal: false,
-            rhsState: '',
-            isBusy: WebrtcStore.isBusy()
+            showChannelNotificationsModal: false,
+            isBusy: WebrtcStore.isBusy(),
         };
     }
 
     componentDidMount() {
+        this.props.actions.getCustomEmojisInText(this.props.channel.header);
         WebrtcStore.addChangedListener(this.onWebrtcChange);
         WebrtcStore.addBusyListener(this.onBusy);
-        SearchStore.addSearchChangeListener(this.onSearchChange);
         document.addEventListener('keydown', this.handleShortcut);
+        window.addEventListener('resize', this.handleResize);
     }
 
     componentWillUnmount() {
         WebrtcStore.removeChangedListener(this.onWebrtcChange);
         WebrtcStore.removeBusyListener(this.onBusy);
-        SearchStore.removeSearchChangeListener(this.onSearchChange);
         document.removeEventListener('keydown', this.handleShortcut);
+        window.removeEventListener('resize', this.handleResize);
     }
 
-    onSearchChange = () => {
-        let rhsState = '';
-        if (SearchStore.isPinnedPosts) {
-            rhsState = RHSStates.PIN;
-        } else if (SearchStore.isFlaggedPosts) {
-            rhsState = RHSStates.FLAG;
-        } else if (SearchStore.isMentionSearch) {
-            rhsState = RHSStates.MENTION;
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
+        if (this.props.channel.id !== nextProps.channel.id) {
+            this.props.actions.getCustomEmojisInText(nextProps.channel.header);
         }
-        this.setState({rhsState});
     }
+
+    handleResize = () => {
+        const windowWidth = Utils.windowWidth();
+
+        this.setState({showSearchBar: windowWidth > SEARCH_BAR_MINIMUM_WINDOW_SIZE});
+    };
 
     onWebrtcChange = () => {
         this.setState({isBusy: WebrtcStore.isBusy()});
-    }
+    };
 
     onBusy = (isBusy) => {
         this.setState({isBusy});
-    }
+    };
 
     handleLeave = () => {
         if (this.props.channel.type === Constants.PRIVATE_CHANNEL) {
@@ -114,7 +142,7 @@ export default class ChannelHeader extends React.Component {
         } else {
             this.props.actions.leaveChannel(this.props.channel.id);
         }
-    }
+    };
 
     toggleFavorite = () => {
         if (this.props.isFavorite) {
@@ -124,70 +152,149 @@ export default class ChannelHeader extends React.Component {
         }
     };
 
+    unmute = () => {
+        const {actions, channel, channelMember, currentUser} = this.props;
+
+        if (!channelMember || !currentUser || !channel) {
+            return;
+        }
+
+        const options = {mark_unread: NotificationLevels.ALL};
+        actions.updateChannelNotifyProps(currentUser.id, channel.id, options);
+    };
+
     searchMentions = (e) => {
         e.preventDefault();
-        if (this.state.rhsState === RHSStates.MENTION) {
-            GlobalActions.toggleSideBarAction(false);
+        if (this.props.rhsState === RHSStates.MENTION) {
+            this.props.actions.closeRightHandSide();
         } else {
-            GlobalActions.emitSearchMentionsEvent(this.props.currentUser);
+            this.props.actions.showMentions();
         }
-    }
+    };
 
     getPinnedPosts = (e) => {
         e.preventDefault();
-        if (this.state.rhsState === RHSStates.PIN) {
-            GlobalActions.toggleSideBarAction(false);
+        if (this.props.rhsState === RHSStates.PIN) {
+            this.props.actions.closeRightHandSide();
         } else {
-            getPinnedPosts(this.props.channel.id);
+            this.props.actions.showPinnedPosts();
         }
-    }
+    };
 
     getFlagged = (e) => {
         e.preventDefault();
-        if (this.state.rhsState === RHSStates.FLAG) {
-            GlobalActions.toggleSideBarAction(false);
+        if (this.props.rhsState === RHSStates.FLAG) {
+            this.props.actions.closeRightHandSide();
         } else {
-            getFlaggedPosts();
+            this.props.actions.showFlaggedPosts();
         }
-    }
+    };
+
+    searchButtonClick = (e) => {
+        e.preventDefault();
+        this.props.actions.updateRhsState(RHSStates.SEARCH);
+    };
 
     handleShortcut = (e) => {
         if (Utils.cmdOrCtrlPressed(e) && e.shiftKey) {
-            if (e.keyCode === Constants.KeyCodes.M) {
+            if (Utils.isKeyPressed(e, Constants.KeyCodes.M)) {
                 e.preventDefault();
                 this.searchMentions(e);
             }
         }
-    }
+    };
 
     showRenameChannelModal = (e) => {
         e.preventDefault();
 
         this.setState({
-            showRenameChannelModal: true
+            showRenameChannelModal: true,
         });
-    }
+    };
 
     hideRenameChannelModal = () => {
         this.setState({
-            showRenameChannelModal: false
+            showRenameChannelModal: false,
         });
-    }
+    };
+
+    showChannelNotificationsModal = (e) => {
+        e.preventDefault();
+
+        this.setState({
+            showChannelNotificationsModal: true,
+        });
+    };
+
+    hideChannelNotificationsModal = () => {
+        this.setState({
+            showChannelNotificationsModal: false,
+        });
+    };
 
     initWebrtc = (contactId, isOnline) => {
         if (isOnline && !this.state.isBusy) {
-            GlobalActions.emitCloseRightHandSide();
+            this.props.actions.closeRightHandSide();
             WebrtcActions.initWebrtc(contactId, true);
         }
-    }
+    };
 
-    openDirectMessageModal = () => {
-        AppDispatcher.handleViewAction({
-            type: ActionTypes.TOGGLE_DM_MODAL,
-            value: true,
-            channelId: this.props.channel.id
-        });
-    }
+    handleOnMouseOver = () => {
+        if (this.refs.headerOverlay) {
+            this.refs.headerOverlay.show();
+        }
+    };
+
+    handleOnMouseOut = () => {
+        if (this.refs.headerOverlay) {
+            this.refs.headerOverlay.hide();
+        }
+    };
+
+    showMembersModal = () => {
+        this.setState({showMembersModal: true});
+    };
+
+    hideMembersModal = () => {
+        this.setState({showMembersModal: false});
+    };
+
+    showEditChannelPurposeModal = () => {
+        this.setState({showEditChannelPurposeModal: true});
+    };
+
+    hideEditChannelPurposeModal = () => {
+        this.setState({showEditChannelPurposeModal: false});
+    };
+
+    hideEditChannelHeaderModal = () => {
+        this.setState({showEditChannelHeaderModal: false});
+    };
+
+    showEditChannelHeaderModal = () => {
+        this.setState({showEditChannelHeaderModal: true});
+    };
+
+    handleWebRTCOnClick = (e) => {
+        e.preventDefault();
+        const dmUserId = this.props.dmUser.id;
+        const dmUserStatus = this.props.dmUserStatus.status;
+        const isOffline = dmUserStatus === UserStatuses.OFFLINE;
+        const isDoNotDisturb = dmUserStatus === UserStatuses.DND;
+
+        this.initWebrtc(dmUserId, !isOffline || !isDoNotDisturb);
+    };
+
+    showInviteModal = () => {
+        const {channel, currentUser, actions} = this.props;
+        const inviteModalData = {
+            modalId: ModalIdentifiers.CHANNEL_INVITE,
+            dialogType: ChannelInviteModal,
+            dialogProps: {channel, currentUser},
+        };
+
+        actions.openModal(inviteModalData);
+    };
 
     render() {
         if (Utils.isEmptyObject(this.props.channel) ||
@@ -199,41 +306,9 @@ export default class ChannelHeader extends React.Component {
             );
         }
 
-        const flagIcon = Constants.FLAG_ICON_SVG;
-        const pinIcon = Constants.PIN_ICON_SVG;
-        const mentionsIcon = Constants.MENTIONS_ICON_SVG;
-
         const channel = this.props.channel;
-        const recentMentionsTooltip = (
-            <Tooltip id='recentMentionsTooltip'>
-                <FormattedMessage
-                    id='channel_header.recentMentions'
-                    defaultMessage='Recent Mentions'
-                />
-            </Tooltip>
-        );
 
-        const pinnedPostTooltip = (
-            <Tooltip id='pinnedPostTooltip'>
-                <FormattedMessage
-                    id='channel_header.pinnedPosts'
-                    defaultMessage='Pinned Posts'
-                />
-            </Tooltip>
-        );
-
-        const flaggedTooltip = (
-            <Tooltip
-                id='flaggedTooltip'
-                className='text-nowrap'
-            >
-                <FormattedMessage
-                    id='channel_header.flagged'
-                    defaultMessage='Flagged Posts'
-                />
-            </Tooltip>
-        );
-
+        const textFormattingOptions = {singleline: true, mentionHighlight: false, siteURL: getSiteURL(), channelNamesMap: ChannelStore.getChannelNamesMap(), team: TeamStore.getCurrent(), atMentions: true};
         const popoverContent = (
             <Popover
                 id='header-popover'
@@ -241,26 +316,24 @@ export default class ChannelHeader extends React.Component {
                 bSize='large'
                 placement='bottom'
                 className='description'
-                onMouseOver={() => this.refs.headerOverlay.show()}
-                onMouseOut={() => this.refs.headerOverlay.hide()}
+                onMouseOver={this.handleOnMouseOver}
+                onMouseOut={this.handleOnMouseOut}
             >
                 <MessageWrapper
                     message={channel.header}
+                    options={textFormattingOptions}
                 />
             </Popover>
         );
 
         let channelTitle = channel.display_name;
-        const isChannelAdmin = Utils.isChannelAdmin(this.props.channelMember.roles);
-        const isTeamAdmin = !Utils.isEmptyObject(this.props.teamMember) && Utils.isAdmin(this.props.teamMember.roles);
-        const isSystemAdmin = Utils.isSystemAdmin(this.props.currentUser.roles);
         const isDirect = (this.props.channel.type === Constants.DM_CHANNEL);
         const isGroup = (this.props.channel.type === Constants.GM_CHANNEL);
+        const isPrivate = (this.props.channel.type === Constants.PRIVATE_CHANNEL);
+        const teamId = TeamStore.getCurrentId();
         let webrtc;
 
         if (isDirect) {
-            const userMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-            const dmUserId = this.props.dmUser.id;
             const dmUserStatus = this.props.dmUserStatus.status;
 
             const teammateId = Utils.getUserIdFromChannelName(channel);
@@ -270,32 +343,41 @@ export default class ChannelHeader extends React.Component {
                         id='channel_header.directchannel.you'
                         defaultMessage='{displayname} (you) '
                         values={{
-                            displayname: Utils.displayUsername(teammateId)
+                            displayname: Utils.getDisplayNameByUserId(teammateId),
                         }}
                     />
                 );
             } else {
-                channelTitle = Utils.displayUsername(teammateId) + ' ';
+                channelTitle = Utils.getDisplayNameByUserId(teammateId) + ' ';
             }
 
-            const webrtcEnabled = global.mm_config.EnableWebrtc === 'true' && userMedia && Utils.isFeatureEnabled(PreReleaseFeatures.WEBRTC_PREVIEW);
+            const webrtcEnabled = this.props.enableWebrtc && Utils.isUserMediaAvailable();
 
-            if (webrtcEnabled) {
+            if (webrtcEnabled && this.props.currentUser.id !== teammateId) {
                 const isOffline = dmUserStatus === UserStatuses.OFFLINE;
+                const isDoNotDisturb = dmUserStatus === UserStatuses.DND;
                 const busy = this.props.dmUserIsInCall;
                 let circleClass = '';
                 let webrtcMessage;
 
-                if (isOffline || busy) {
+                if (isOffline || isDoNotDisturb || busy) {
                     circleClass = 'offline';
-                    webrtcMessage = (
-                        <FormattedMessage
-                            id='channel_header.webrtc.offline'
-                            defaultMessage='The user is offline'
-                        />
-                    );
 
-                    if (busy) {
+                    if (isOffline) {
+                        webrtcMessage = (
+                            <FormattedMessage
+                                id='channel_header.webrtc.offline'
+                                defaultMessage='The user is offline'
+                            />
+                        );
+                    } else if (isDoNotDisturb) {
+                        webrtcMessage = (
+                            <FormattedMessage
+                                id='channel_header.webrtc.doNotDisturb'
+                                defaultMessage='Do not disturb'
+                            />
+                        );
+                    } else if (busy) {
                         webrtcMessage = (
                             <FormattedMessage
                                 id='channel_header.webrtc.unavailable'
@@ -317,11 +399,11 @@ export default class ChannelHeader extends React.Component {
                 );
 
                 webrtc = (
-                    <div className='webrtc__header channel-header__icon'>
+                    <div className={'webrtc__header channel-header__icon wide text ' + circleClass}>
                         <button
                             className='style--none'
-                            onClick={() => this.initWebrtc(dmUserId, !isOffline)}
-                            disabled={isOffline}
+                            onClick={this.handleWebRTCOnClick}
+                            disabled={isOffline || isDoNotDisturb}
                         >
                             <OverlayTrigger
                                 trigger={['hover', 'focus']}
@@ -333,7 +415,7 @@ export default class ChannelHeader extends React.Component {
                                     id='webrtc-btn'
                                     className={'webrtc__button ' + circleClass}
                                 >
-                                    <span dangerouslySetInnerHTML={{__html: Constants.VIDEO_ICON}}/>
+                                    {'WebRTC'}
                                 </div>
                             </OverlayTrigger>
                         </button>
@@ -358,9 +440,10 @@ export default class ChannelHeader extends React.Component {
                     key='edit_header_direct'
                     role='presentation'
                 >
-                    <ToggleModalButton
+                    <ToggleModalButtonRedux
                         id='channelEditHeaderDirect'
                         role='menuitem'
+                        modalId={ModalIdentifiers.EDIT_CHANNEL_HEADER}
                         dialogType={EditChannelHeaderModal}
                         dialogProps={{channel}}
                     >
@@ -368,7 +451,7 @@ export default class ChannelHeader extends React.Component {
                             id='channel_header.channelHeader'
                             defaultMessage='Edit Channel Header'
                         />
-                    </ToggleModalButton>
+                    </ToggleModalButtonRedux>
                 </li>
             );
         } else if (isGroup) {
@@ -377,9 +460,10 @@ export default class ChannelHeader extends React.Component {
                     key='edit_header_direct'
                     role='presentation'
                 >
-                    <ToggleModalButton
+                    <ToggleModalButtonRedux
                         id='channelEditHeaderGroup'
                         role='menuitem'
+                        modalId={ModalIdentifiers.EDIT_CHANNEL_HEADER}
                         dialogType={EditChannelHeaderModal}
                         dialogProps={{channel}}
                     >
@@ -387,7 +471,7 @@ export default class ChannelHeader extends React.Component {
                             id='channel_header.channelHeader'
                             defaultMessage='Edit Channel Header'
                         />
-                    </ToggleModalButton>
+                    </ToggleModalButtonRedux>
                 </li>
             );
 
@@ -396,21 +480,17 @@ export default class ChannelHeader extends React.Component {
                     key='notification_preferences'
                     role='presentation'
                 >
-                    <ToggleModalButton
-                        id='channelnotificationPreferencesGroup'
+                    <button
+                        className='style--none'
+                        id='channelNotificationsGroup'
                         role='menuitem'
-                        dialogType={ChannelNotificationsModal}
-                        dialogProps={{
-                            channel,
-                            channelMember: this.props.channelMember,
-                            currentUser: this.props.currentUser
-                        }}
+                        onClick={this.showChannelNotificationsModal}
                     >
                         <FormattedMessage
                             id='channel_header.notificationPreferences'
                             defaultMessage='Notification Preferences'
                         />
-                    </ToggleModalButton>
+                    </button>
                 </li>
             );
 
@@ -419,17 +499,18 @@ export default class ChannelHeader extends React.Component {
                     key='add_members'
                     role='presentation'
                 >
-                    <button
-                        className='style--none'
+                    <ToggleModalButtonRedux
                         id='channelAddMembersGroup'
                         role='menuitem'
-                        onClick={this.openDirectMessageModal}
+                        modalId={ModalIdentifiers.CREATE_DM_CHANNEL}
+                        dialogType={MoreDirectChannels}
+                        dialogProps={{isExistingChannel: true}}
                     >
                         <FormattedMessage
                             id='channel_header.addMembers'
                             defaultMessage='Add Members'
                         />
-                    </button>
+                    </ToggleModalButtonRedux>
                 </li>
             );
         } else {
@@ -438,9 +519,10 @@ export default class ChannelHeader extends React.Component {
                     key='view_info'
                     role='presentation'
                 >
-                    <ToggleModalButton
+                    <ToggleModalButtonRedux
                         id='channelViewInfo'
                         role='menuitem'
+                        modalId={ModalIdentifiers.CHANNEL_INFO}
                         dialogType={ChannelInfoModal}
                         dialogProps={{channel}}
                     >
@@ -448,7 +530,7 @@ export default class ChannelHeader extends React.Component {
                             id='channel_header.viewInfo'
                             defaultMessage='View Info'
                         />
-                    </ToggleModalButton>
+                    </ToggleModalButtonRedux>
                 </li>
             );
 
@@ -462,7 +544,7 @@ export default class ChannelHeader extends React.Component {
                             className='style--none'
                             id='channelManageMembers'
                             role='menuitem'
-                            onClick={() => this.setState({showMembersModal: true})}
+                            onClick={this.showMembersModal}
                         >
                             <FormattedMessage
                                 id='channel_header.viewMembers'
@@ -478,21 +560,17 @@ export default class ChannelHeader extends React.Component {
                     key='notification_preferences'
                     role='presentation'
                 >
-                    <ToggleModalButton
-                        id='channelNotificationPreferences'
+                    <button
+                        className='style--none'
+                        id='channelNotificationsGroup'
                         role='menuitem'
-                        dialogType={ChannelNotificationsModal}
-                        dialogProps={{
-                            channel,
-                            channelMember: this.props.channelMember,
-                            currentUser: this.props.currentUser
-                        }}
+                        onClick={this.showChannelNotificationsModal}
                     >
                         <FormattedMessage
                             id='channel_header.notificationPreferences'
                             defaultMessage='Notification Preferences'
                         />
-                    </ToggleModalButton>
+                    </button>
                 </li>
             );
 
@@ -504,16 +582,22 @@ export default class ChannelHeader extends React.Component {
                     />
                 );
 
-                if (ChannelUtils.canManageMembers(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin)) {
-                    dropdownContents.push(
+                dropdownContents.push(
+                    <ChannelPermissionGate
+                        channelId={channel.id}
+                        teamId={teamId}
+                        permissions={[isPrivate ? Permissions.MANAGE_PRIVATE_CHANNEL_MEMBERS : Permissions.MANAGE_PUBLIC_CHANNEL_MEMBERS]}
+                        key='add_members_permission'
+                    >
                         <li
                             key='add_members'
                             role='presentation'
                         >
-                            <ToggleModalButton
+                            <ToggleModalButtonRedux
                                 id='channelAddMembers'
                                 ref='channelInviteModalButton'
                                 role='menuitem'
+                                modalId={ModalIdentifiers.CHANNEL_INVITE}
                                 dialogType={ChannelInviteModal}
                                 dialogProps={{channel, currentUser: this.props.currentUser}}
                             >
@@ -521,11 +605,17 @@ export default class ChannelHeader extends React.Component {
                                     id='channel_header.addMembers'
                                     defaultMessage='Add Members'
                                 />
-                            </ToggleModalButton>
+                            </ToggleModalButtonRedux>
                         </li>
-                    );
-
-                    dropdownContents.push(
+                    </ChannelPermissionGate>
+                );
+                dropdownContents.push(
+                    <ChannelPermissionGate
+                        channelId={channel.id}
+                        teamId={teamId}
+                        permissions={[isPrivate ? Permissions.MANAGE_PRIVATE_CHANNEL_MEMBERS : Permissions.MANAGE_PUBLIC_CHANNEL_MEMBERS]}
+                        key='manage_members_permission'
+                    >
                         <li
                             key='manage_members'
                             role='presentation'
@@ -534,7 +624,7 @@ export default class ChannelHeader extends React.Component {
                                 className='style--none'
                                 id='channelManageMembers'
                                 role='menuitem'
-                                onClick={() => this.setState({showMembersModal: true})}
+                                onClick={this.showMembersModal}
                             >
                                 <FormattedMessage
                                     id='channel_header.manageMembers'
@@ -542,9 +632,17 @@ export default class ChannelHeader extends React.Component {
                                 />
                             </button>
                         </li>
-                    );
-                } else {
-                    dropdownContents.push(
+                    </ChannelPermissionGate>
+                );
+
+                dropdownContents.push(
+                    <ChannelPermissionGate
+                        channelId={channel.id}
+                        teamId={teamId}
+                        permissions={[isPrivate ? Permissions.MANAGE_PRIVATE_CHANNEL_MEMBERS : Permissions.MANAGE_PUBLIC_CHANNEL_MEMBERS]}
+                        invert={true}
+                        key='view_members_permission'
+                    >
                         <li
                             key='view_members'
                             role='presentation'
@@ -553,7 +651,7 @@ export default class ChannelHeader extends React.Component {
                                 className='style--none'
                                 id='channelViewMembers'
                                 role='menuitem'
-                                onClick={() => this.setState({showMembersModal: true})}
+                                onClick={this.showMembersModal}
                             >
                                 <FormattedMessage
                                     id='channel_header.viewMembers'
@@ -561,98 +659,137 @@ export default class ChannelHeader extends React.Component {
                                 />
                             </button>
                         </li>
-                    );
-                }
-            }
-
-            if (ChannelUtils.showManagementOptions(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin)) {
-                dropdownContents.push(
-                    <li
-                        key='divider-2'
-                        className='divider'
-                    />
-                );
-
-                dropdownContents.push(
-                    <li
-                        key='set_channel_header'
-                        role='presentation'
-                    >
-                        <ToggleModalButton
-                            id='channelEditHeader'
-                            role='menuitem'
-                            dialogType={EditChannelHeaderModal}
-                            dialogProps={{channel}}
-                        >
-                            <FormattedMessage
-                                id='channel_header.setHeader'
-                                defaultMessage='Edit Channel Header'
-                            />
-                        </ToggleModalButton>
-                    </li>
-                );
-
-                dropdownContents.push(
-                    <li
-                        key='set_channel_purpose'
-                        role='presentation'
-                    >
-                        <button
-                            className='style--none'
-                            id='channelEditPurpose'
-                            role='menuitem'
-                            onClick={() => this.setState({showEditChannelPurposeModal: true})}
-                        >
-                            <FormattedMessage
-                                id='channel_header.setPurpose'
-                                defaultMessage='Edit Channel Purpose'
-                            />
-                        </button>
-                    </li>
-                );
-
-                dropdownContents.push(
-                    <li
-                        key='rename_channel'
-                        role='presentation'
-                    >
-                        <button
-                            className='style--none'
-                            id='channelRename'
-                            role='menuitem'
-                            onClick={this.showRenameChannelModal}
-                        >
-                            <FormattedMessage
-                                id='channel_header.rename'
-                                defaultMessage='Rename Channel'
-                            />
-                        </button>
-                    </li>
+                    </ChannelPermissionGate>
                 );
             }
 
-            if (ChannelUtils.showDeleteOptionForCurrentUser(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin)) {
+            if (!this.props.isReadOnly) {
                 dropdownContents.push(
-                    <li
-                        key='delete_channel'
-                        role='presentation'
+                    <ChannelPermissionGate
+                        channelId={channel.id}
+                        teamId={teamId}
+                        permissions={[isPrivate ? Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES : Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES]}
+                        key='set_channel_info_permission'
                     >
-                        <ToggleModalButton
-                            id='channelDelete'
-                            role='menuitem'
-                            dialogType={DeleteChannelModal}
-                            dialogProps={{channel}}
+                        <li
+                            key='divider-2'
+                            className='divider'
+                        />
+
+                        <li
+                            key='set_channel_header'
+                            role='presentation'
                         >
-                            <FormattedMessage
-                                id='channel_header.delete'
-                                defaultMessage='Delete Channel'
-                            />
-                        </ToggleModalButton>
-                    </li>
+                            <ToggleModalButtonRedux
+                                id='channelEditHeader'
+                                role='menuitem'
+                                modalId={ModalIdentifiers.EDIT_CHANNEL_HEADER}
+                                dialogType={EditChannelHeaderModal}
+                                dialogProps={{channel}}
+                            >
+                                <FormattedMessage
+                                    id='channel_header.setHeader'
+                                    defaultMessage='Edit Channel Header'
+                                />
+                            </ToggleModalButtonRedux>
+                        </li>
+
+                        <li
+                            key='set_channel_purpose'
+                            role='presentation'
+                        >
+                            <button
+                                className='style--none'
+                                id='channelEditPurpose'
+                                role='menuitem'
+                                onClick={this.showEditChannelPurposeModal}
+                            >
+                                <FormattedMessage
+                                    id='channel_header.setPurpose'
+                                    defaultMessage='Edit Channel Purpose'
+                                />
+                            </button>
+                        </li>
+
+                        <li
+                            key='rename_channel'
+                            role='presentation'
+                        >
+                            <button
+                                className='style--none'
+                                id='channelRename'
+                                role='menuitem'
+                                onClick={this.showRenameChannelModal}
+                            >
+                                <FormattedMessage
+                                    id='channel_header.rename'
+                                    defaultMessage='Rename Channel'
+                                />
+                            </button>
+                        </li>
+                    </ChannelPermissionGate>
+                );
+            }
+
+            if (!this.props.isDefault && channel.type === Constants.OPEN_CHANNEL) {
+                dropdownContents.push(
+                    <TeamPermissionGate
+                        teamId={teamId}
+                        permissions={[Permissions.MANAGE_TEAM]}
+                        key='convert_channel_permission'
+                    >
+                        <li
+                            key='convert_channel'
+                            role='presentation'
+                        >
+                            <ToggleModalButtonRedux
+                                id='channelConvert'
+                                role='menuitem'
+                                modalId={ModalIdentifiers.CONVERT_CHANNEL}
+                                dialogType={ConvertChannelModal}
+                                dialogProps={{
+                                    channelId: channel.id,
+                                    channelDisplayName: channel.display_name,
+                                }}
+                            >
+                                <FormattedMessage
+                                    id='channel_header.convert'
+                                    defaultMessage='Convert to Private Channel'
+                                />
+                            </ToggleModalButtonRedux>
+                        </li>
+                    </TeamPermissionGate>
                 );
             }
 
             if (!this.props.isDefault) {
+                dropdownContents.push(
+                    <ChannelPermissionGate
+                        channelId={channel.id}
+                        teamId={teamId}
+                        permissions={[isPrivate ? Permissions.DELETE_PRIVATE_CHANNEL : Permissions.DELETE_PUBLIC_CHANNEL]}
+                        key='delete_channel_permission'
+                    >
+                        <li
+                            key='delete_channel'
+                            role='presentation'
+                        >
+                            <ToggleModalButtonRedux
+                                id='channelDelete'
+                                role='menuitem'
+                                modalId={ModalIdentifiers.DELETE_CHANNEL}
+                                dialogType={DeleteChannelModal}
+                                dialogProps={{channel}}
+                            >
+                                <FormattedMessage
+                                    id='channel_header.delete'
+                                    defaultMessage='Delete Channel'
+                                />
+                            </ToggleModalButtonRedux>
+                        </li>
+                    </ChannelPermissionGate>
+                );
+
                 dropdownContents.push(
                     <li
                         key='divider-3'
@@ -683,7 +820,7 @@ export default class ChannelHeader extends React.Component {
 
         let dmHeaderIconStatus;
         let dmHeaderTextStatus;
-        if (channel.type === Constants.DM_CHANNEL) {
+        if (channel.type === Constants.DM_CHANNEL && !this.props.dmUser.delete_at) {
             dmHeaderIconStatus = (
                 <StatusIcon
                     type='avatar'
@@ -704,6 +841,7 @@ export default class ChannelHeader extends React.Component {
         let headerTextContainer;
         if (channel.header) {
             let headerTextElement;
+            const formattedText = TextFormatting.formatText(channel.header, textFormattingOptions);
             if (this.props.enableFormatting) {
                 headerTextElement = (
                     <div
@@ -712,10 +850,9 @@ export default class ChannelHeader extends React.Component {
                     >
                         {dmHeaderIconStatus}
                         {dmHeaderTextStatus}
-                        <span
-                            onClick={Utils.handleFormattedTextClick}
-                            dangerouslySetInnerHTML={{__html: TextFormatting.formatText(channel.header, {singleline: true, mentionHighlight: false, siteURL: getSiteURL()})}}
-                        />
+                        <span onClick={Utils.handleFormattedTextClick}>
+                            {messageHtmlToComponent(formattedText, false, {mentions: false})}
+                        </span>
                     </div>
                 );
             } else {
@@ -745,18 +882,38 @@ export default class ChannelHeader extends React.Component {
             );
         } else {
             let editMessage;
-            if (ChannelUtils.showManagementOptions(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin)) {
-                editMessage = (
-                    <button
-                        className='style--none'
-                        onClick={() => this.setState({showEditChannelHeaderModal: true})}
-                    >
-                        <FormattedMessage
-                            id='channel_header.addChannelHeader'
-                            defaultMessage='Add a channel description'
-                        />
-                    </button>
-                );
+            if (!this.props.isReadOnly) {
+                if (isDirect || isGroup) {
+                    editMessage = (
+                        <button
+                            className='style--none'
+                            onClick={this.showEditChannelHeaderModal}
+                        >
+                            <FormattedMessage
+                                id='channel_header.addChannelHeader'
+                                defaultMessage='Add a channel description'
+                            />
+                        </button>
+                    );
+                } else {
+                    editMessage = (
+                        <ChannelPermissionGate
+                            channelId={channel.id}
+                            teamId={teamId}
+                            permissions={[isPrivate ? Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES : Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES]}
+                        >
+                            <button
+                                className='style--none'
+                                onClick={this.showEditChannelHeaderModal}
+                            >
+                                <FormattedMessage
+                                    id='channel_header.addChannelHeader'
+                                    defaultMessage='Add a channel description'
+                                />
+                            </button>
+                        </ChannelPermissionGate>
+                    );
+                }
             }
             headerTextContainer = (
                 <div
@@ -774,7 +931,7 @@ export default class ChannelHeader extends React.Component {
         if (this.state.showEditChannelHeaderModal) {
             editHeaderModal = (
                 <EditChannelHeaderModal
-                    onHide={() => this.setState({showEditChannelHeaderModal: false})}
+                    onHide={this.hideEditChannelHeaderModal}
                     channel={channel}
                 />
             );
@@ -818,12 +975,42 @@ export default class ChannelHeader extends React.Component {
             </OverlayTrigger>
         );
 
+        const channelMuted = isChannelMuted(this.props.channelMember);
+        const channelMutedTooltip = (
+            <Tooltip id='channelMutedTooltip'>
+                <FormattedMessage
+                    id='channelHeader.unmute'
+                    defaultMessage='Unmute'
+                />
+            </Tooltip>
+        );
+
+        let muteTrigger;
+        if (channelMuted) {
+            muteTrigger = (
+                <OverlayTrigger
+                    trigger={['hover', 'focus']}
+                    delayShow={Constants.OVERLAY_TIME_DELAY}
+                    placement='bottom'
+                    overlay={channelMutedTooltip}
+                >
+                    <button
+                        id='toggleMute'
+                        onClick={this.unmute}
+                        className={'style--none color--link channel-header__mute inactive'}
+                    >
+                        <i className={'icon fa fa-bell-slash-o'}/>
+                    </button>
+                </OverlayTrigger>
+            );
+        }
+
         let channelMembersModal;
         if (this.state.showMembersModal) {
             channelMembersModal = (
                 <ChannelMembersModal
-                    onModalDismissed={() => this.setState({showMembersModal: false})}
-                    showInviteModal={() => this.refs.channelInviteModalButton.show()}
+                    onModalDismissed={this.hideMembersModal}
+                    showInviteModal={this.showInviteModal}
                     channel={channel}
                 />
             );
@@ -833,14 +1020,14 @@ export default class ChannelHeader extends React.Component {
         if (this.state.showEditChannelPurposeModal) {
             editPurposeModal = (
                 <EditChannelPurposeModal
-                    onModalDismissed={() => this.setState({showEditChannelPurposeModal: false})}
+                    onModalDismissed={this.hideEditChannelPurposeModal}
                     channel={channel}
                 />
             );
         }
 
         let pinnedIconClass = 'channel-header__icon';
-        if (this.state.rhsState === RHSStates.PIN) {
+        if (this.props.rhsState === RHSStates.PIN) {
             pinnedIconClass += ' active';
         }
 
@@ -855,37 +1042,40 @@ export default class ChannelHeader extends React.Component {
                             id='channelHeaderInfo'
                             className='channel-header__info'
                         >
-                            {toggleFavorite}
                             <div
                                 id='channelHeaderTitle'
                                 className='channel-header__title dropdown'
                             >
-                                <button
-                                    id='channelHeaderDropdownButton'
-                                    className='dropdown-toggle theme style--none'
-                                    type='button'
-                                    data-toggle='dropdown'
-                                    aria-expanded='true'
-                                >
-                                    <strong
-                                        id='channelHeaderTitle'
-                                        className='heading'
+                                {toggleFavorite}
+                                <h2>
+                                    <button
+                                        id='channelHeaderDropdownButton'
+                                        className='dropdown-toggle theme style--none'
+                                        type='button'
+                                        data-toggle='dropdown'
+                                        aria-expanded='true'
                                     >
-                                        {channelTitle}
-                                    </strong>
-                                    <span
-                                        id='channelHeaderDropdownIcon'
-                                        className='fa fa-angle-down header-dropdown__icon'
-                                    />
-                                </button>
-                                <ul
-                                    id='channelHeaderDropdownMenu'
-                                    className='dropdown-menu'
-                                    role='menu'
-                                    aria-labelledby='channel_header_dropdown'
-                                >
-                                    {dropdownContents}
-                                </ul>
+                                        <strong
+                                            id='channelHeaderTitle'
+                                            className='heading'
+                                        >
+                                            {channelTitle}
+                                        </strong>
+                                        <span
+                                            id='channelHeaderDropdownIcon'
+                                            className='fa fa-angle-down header-dropdown__icon'
+                                        />
+                                    </button>
+                                    <ul
+                                        id='channelHeaderDropdownMenu'
+                                        className='dropdown-menu'
+                                        role='menu'
+                                        aria-labelledby='channel_header_dropdown'
+                                    >
+                                        {dropdownContents}
+                                    </ul>
+                                </h2>
+                                {muteTrigger}
                             </div>
                             {headerTextContainer}
                         </div>
@@ -897,75 +1087,70 @@ export default class ChannelHeader extends React.Component {
                         {popoverListMembers}
                     </div>
                     <div className='flex-child'>
-                        <OverlayTrigger
-                            trigger={['hover', 'focus']}
-                            delayShow={Constants.OVERLAY_TIME_DELAY}
-                            placement='bottom'
-                            overlay={pinnedPostTooltip}
-                        >
-                            <button
-                                id='channelHeaderPinButton'
-                                className={'style--none ' + pinnedIconClass}
-                                onClick={this.getPinnedPosts}
-                            >
-                                <span
-                                    className='icon icon__pin'
-                                    dangerouslySetInnerHTML={{__html: pinIcon}}
+                        <Pluggable pluggableName='ChannelHeaderButton'/>
+                    </div>
+                    <HeaderIconWrapper
+                        iconComponent={
+                            <PinIcon
+                                className='icon icon__pin'
+                                aria-hidden='true'
+                            />
+                        }
+                        buttonClass={'style--none ' + pinnedIconClass}
+                        buttonId={'channelHeaderPinButton'}
+                        onClick={this.getPinnedPosts}
+                        tooltipKey={'pinnedPosts'}
+                    />
+                    {this.state.showSearchBar ? (
+                        <div className='flex-child search-bar__container'>
+                            <SearchBar
+                                showMentionFlagBtns={false}
+                                isFocus={Utils.isMobile()}
+                            />
+                        </div>
+                    ) : (
+                        <HeaderIconWrapper
+                            iconComponent={
+                                <SearchIcon
+                                    className='icon icon__search icon--stroke'
                                     aria-hidden='true'
                                 />
-                            </button>
-                        </OverlayTrigger>
-                    </div>
-                    <div className='flex-child search-bar__container'>
-                        <NavbarSearchBox
-                            showMentionFlagBtns={false}
-                            isFocus={Utils.isMobile()}
+                            }
+                            buttonId={'channelHeaderSearchButton'}
+                            onClick={this.searchButtonClick}
+                            tooltipKey={'search'}
                         />
-                    </div>
-                    <div className='flex-child'>
-                        <OverlayTrigger
-                            trigger={['hover', 'focus']}
-                            delayShow={Constants.OVERLAY_TIME_DELAY}
-                            placement='bottom'
-                            overlay={recentMentionsTooltip}
-                        >
-                            <button
-                                id='channelHeaderMentionButton'
-                                className='channel-header__icon icon--hidden style--none'
-                                onClick={this.searchMentions}
-                            >
-                                <span
-                                    className='icon icon__mentions'
-                                    dangerouslySetInnerHTML={{__html: mentionsIcon}}
-                                    aria-hidden='true'
-                                />
-                            </button>
-                        </OverlayTrigger>
-                    </div>
-                    <div className='flex-child'>
-                        <OverlayTrigger
-                            trigger={['hover', 'focus']}
-                            delayShow={Constants.OVERLAY_TIME_DELAY}
-                            placement='bottom'
-                            overlay={flaggedTooltip}
-                        >
-                            <button
-                                id='channelHeaderFlagButton'
-                                className='channel-header__icon icon--hidden style--none'
-                                onClick={this.getFlagged}
-
-                            >
-                                <span
-                                    className='icon icon__flag'
-                                    dangerouslySetInnerHTML={{__html: flagIcon}}
-                                />
-                            </button>
-                        </OverlayTrigger>
-                    </div>
+                    )}
+                    <HeaderIconWrapper
+                        iconComponent={
+                            <MentionsIcon
+                                className='icon icon__mentions'
+                                aria-hidden='true'
+                            />
+                        }
+                        buttonId={'channelHeaderMentionButton'}
+                        onClick={this.searchMentions}
+                        tooltipKey={'recentMentions'}
+                    />
+                    <HeaderIconWrapper
+                        iconComponent={
+                            <FlagIcon className='icon icon__flag'/>
+                        }
+                        buttonId={'channelHeaderFlagButton'}
+                        onClick={this.getFlagged}
+                        tooltipKey={'flaggedPosts'}
+                    />
                 </div>
                 {editHeaderModal}
                 {editPurposeModal}
                 {channelMembersModal}
+                <ChannelNotificationsModal
+                    show={this.state.showChannelNotificationsModal}
+                    onHide={this.hideChannelNotificationsModal}
+                    channel={channel}
+                    channelMember={this.props.channelMember}
+                    currentUser={this.props.currentUser}
+                />
                 <RenameChannelModal
                     show={this.state.showRenameChannelModal}
                     onHide={this.hideRenameChannelModal}

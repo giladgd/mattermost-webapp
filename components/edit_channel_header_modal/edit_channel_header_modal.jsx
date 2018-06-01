@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
@@ -17,8 +17,8 @@ const KeyCodes = Constants.KeyCodes;
 const holders = defineMessages({
     error: {
         id: 'edit_channel_header_modal.error',
-        defaultMessage: 'This channel header is too long, please enter a shorter one'
-    }
+        defaultMessage: 'This channel header is too long, please enter a shorter one',
+    },
 });
 
 class EditChannelHeaderModal extends React.PureComponent {
@@ -62,8 +62,8 @@ class EditChannelHeaderModal extends React.PureComponent {
             /*
              * patch channel redux-action
              */
-            patchChannel: PropTypes.func.isRequired
-        }).isRequired
+            patchChannel: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
@@ -72,15 +72,11 @@ class EditChannelHeaderModal extends React.PureComponent {
         this.state = {
             header: props.channel.header,
             show: true,
-            showError: false
+            showError: false,
         };
     }
 
-    componentDidMount() {
-        this.focusTextbox();
-    }
-
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         const {requestStatus: nextRequestStatus} = nextProps;
         const {requestStatus} = this.props;
 
@@ -95,7 +91,7 @@ class EditChannelHeaderModal extends React.PureComponent {
 
     handleChange = (e) => {
         this.setState({
-            header: e.target.value
+            header: e.target.value,
         });
     }
 
@@ -115,9 +111,13 @@ class EditChannelHeaderModal extends React.PureComponent {
         }
     }
 
+    handleEntering = () => {
+        this.focusTextbox();
+    }
+
     handleKeyDown = (e) => {
         const {ctrlSend} = this.props;
-        if (ctrlSend && e.keyCode === KeyCodes.ENTER && e.ctrlKey === true) {
+        if (ctrlSend && Utils.isKeyPressed(e, KeyCodes.ENTER) && e.ctrlKey === true) {
             this.handleKeyPress(e);
         }
     }
@@ -125,7 +125,7 @@ class EditChannelHeaderModal extends React.PureComponent {
     handleKeyPress = (e) => {
         const {ctrlSend} = this.props;
         if (!UserAgent.isMobile() && ((ctrlSend && e.ctrlKey) || !ctrlSend)) {
-            if (e.which === KeyCodes.ENTER && !e.shiftKey && !e.altKey) {
+            if (Utils.isKeyPressed(e, KeyCodes.ENTER) && !e.shiftKey && !e.altKey) {
                 e.preventDefault();
                 ReactDOM.findDOMNode(this.refs.editChannelHeaderTextbox).blur();
                 this.handleSave(e);
@@ -167,7 +167,7 @@ class EditChannelHeaderModal extends React.PureComponent {
                     id='edit_channel_header_modal.title'
                     defaultMessage='Edit Header for {channel}'
                     values={{
-                        channel: this.props.channel.display_name
+                        channel: this.props.channel.display_name,
                     }}
                 />
             );
@@ -177,6 +177,7 @@ class EditChannelHeaderModal extends React.PureComponent {
             <Modal
                 show={this.state.show}
                 onHide={this.onHide}
+                onEntering={this.handleEntering}
                 onExited={this.props.onHide}
             >
                 <Modal.Header closeButton={true}>

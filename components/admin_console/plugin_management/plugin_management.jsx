@@ -1,56 +1,399 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
-import {Link} from 'react-router';
+import {Link} from 'react-router-dom';
+import PluginState from 'mattermost-redux/constants/plugins';
 
 import * as Utils from 'utils/utils.jsx';
-
 import Banner from 'components/admin_console/banner.jsx';
 import LoadingScreen from 'components/loading_screen.jsx';
 
+const PluginItemState = ({state}) => {
+    switch (state) {
+    case PluginState.PLUGIN_STATE_NOT_RUNNING:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.not_running'
+                defaultMessage='Not running'
+            />
+        );
+    case PluginState.PLUGIN_STATE_STARTING:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.starting'
+                defaultMessage='Starting'
+            />
+        );
+    case PluginState.PLUGIN_STATE_RUNNING:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.running'
+                defaultMessage='Running'
+            />
+        );
+    case PluginState.PLUGIN_STATE_FAILED_TO_START:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.failed_to_start'
+                defaultMessage='Failed to start'
+            />
+        );
+    case PluginState.PLUGIN_STATE_FAILED_TO_STAY_RUNNING:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.failed_to_stay_running'
+                defaultMessage='Crashing'
+            />
+        );
+    case PluginState.PLUGIN_STATE_STOPPING:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.stopping'
+                defaultMessage='Stopping'
+            />
+        );
+    default:
+        return (
+            <FormattedMessage
+                id='admin.plugin.state.unknown'
+                defaultMessage='Unknown'
+            />
+        );
+    }
+};
+
+PluginItemState.propTypes = {
+    state: PropTypes.number.isRequired,
+};
+
+const PluginItemStateDescription = ({state}) => {
+    switch (state) {
+    case PluginState.PLUGIN_STATE_NOT_RUNNING:
+        return (
+            <div className='alert alert-info'>
+                <i className='fa fa-ban'/>
+                <FormattedMessage
+                    id='admin.plugin.state.not_running.description'
+                    defaultMessage='This plugin is not activated.'
+                />
+            </div>
+        );
+    case PluginState.PLUGIN_STATE_STARTING:
+        return (
+            <div className='alert alert-success'>
+                <i className='fa fa-info'/>
+                <FormattedMessage
+                    id='admin.plugin.state.starting.description'
+                    defaultMessage='This plugin is starting.'
+                />
+            </div>
+        );
+    case PluginState.PLUGIN_STATE_RUNNING:
+        return (
+            <div className='alert alert-success'>
+                <i className='fa fa-check'/>
+                <FormattedMessage
+                    id='admin.plugin.state.running.description'
+                    defaultMessage='This plugin is running.'
+                />
+            </div>
+        );
+    case PluginState.PLUGIN_STATE_FAILED_TO_START:
+        return (
+            <div className='alert alert-warning'>
+                <i className='fa fa-warning'/>
+                <FormattedMessage
+                    id='admin.plugin.state.failed_to_start.description'
+                    defaultMessage='This plugin failed to start. Check your system logs for errors.'
+                />
+            </div>
+        );
+    case PluginState.PLUGIN_STATE_FAILED_TO_STAY_RUNNING:
+        return (
+            <div className='alert alert-warning'>
+                <i className='fa fa-warning'/>
+                <FormattedMessage
+                    id='admin.plugin.state.failed_to_stay_running.description'
+                    defaultMessage='This plugin crashed multiple times and is no longer running. Check your system logs for errors.'
+                />
+            </div>
+        );
+    case PluginState.PLUGIN_STATE_STOPPING:
+        return (
+            <div className='alert alert-info'>
+                <i className='fa fa-info'/>
+                <FormattedMessage
+                    id='admin.plugin.state.stopping.description'
+                    defaultMessage='This plugin is stopping.'
+                />
+            </div>
+        );
+    default:
+        return null;
+    }
+};
+
+PluginItemStateDescription.propTypes = {
+    state: PropTypes.number.isRequired,
+};
+
+const PluginItem = ({
+    pluginStatus,
+    removing,
+    handleActivate,
+    handleDeactivate,
+    handleRemove,
+    showInstances,
+}) => {
+    let activateButton;
+    const activating = pluginStatus.state === PluginState.PLUGIN_STATE_STARTING;
+    const deactivating = pluginStatus.state === PluginState.PLUGIN_STATE_STOPPING;
+    if (pluginStatus.active) {
+        activateButton = (
+            <a
+                data-plugin-id={pluginStatus.id}
+                disabled={deactivating}
+                onClick={handleDeactivate}
+            >
+                {deactivating ?
+                    <FormattedMessage
+                        id='admin.plugin.deactivating'
+                        defaultMessage='Deactivating...'
+                    /> :
+                    <FormattedMessage
+                        id='admin.plugin.deactivate'
+                        defaultMessage='Deactivate'
+                    />
+                }
+            </a>
+        );
+    } else {
+        activateButton = (
+            <a
+                data-plugin-id={pluginStatus.id}
+                disabled={activating}
+                onClick={handleActivate}
+            >
+                {activating ?
+                    <FormattedMessage
+                        id='admin.plugin.activating'
+                        defaultMessage='Activating...'
+                    /> :
+                    <FormattedMessage
+                        id='admin.plugin.activate'
+                        defaultMessage='Activate'
+                    />
+                }
+            </a>
+        );
+    }
+
+    let settingsButton;
+    if (pluginStatus.settings_schema) {
+        settingsButton = (
+            <span>
+                {' - '}
+                <Link
+                    to={'/admin_console/plugins/custom/' + pluginStatus.id}
+                >
+                    <FormattedMessage
+                        id='admin.plugin.settingsButton'
+                        defaultMessage='Settings'
+                    />
+                </Link>
+            </span>
+        );
+    }
+
+    let removeButton;
+    if (!pluginStatus.is_prepackaged) {
+        let removeButtonText;
+        if (removing) {
+            removeButtonText = (
+                <FormattedMessage
+                    id='admin.plugin.removing'
+                    defaultMessage='Removing...'
+                />
+            );
+        } else {
+            removeButtonText = (
+                <FormattedMessage
+                    id='admin.plugin.remove'
+                    defaultMessage='Remove'
+                />
+            );
+        }
+        removeButton = (
+            <span>
+                {' - '}
+                <a
+                    data-plugin-id={pluginStatus.id}
+                    disabled={removing}
+                    onClick={handleRemove}
+                >
+                    {removeButtonText}
+                </a>
+            </span>
+        );
+    }
+
+    let description;
+    if (pluginStatus.description) {
+        description = (
+            <div className='padding-top'>
+                {pluginStatus.description}
+            </div>
+        );
+    }
+
+    let prepackagedLabel;
+    if (pluginStatus.is_prepackaged) {
+        prepackagedLabel = (
+            <span>
+                {', '}
+                <FormattedMessage
+                    id='admin.plugin.prepackaged'
+                    defaultMessage='pre-packaged'
+                />
+            </span>
+        );
+    }
+
+    const notices = [];
+    if (pluginStatus.instances.some((instance) => instance.version !== pluginStatus.version)) {
+        notices.push(
+            <div
+                key='multiple-versions'
+                className='alert alert-warning'
+            >
+                <i className='fa fa-warning'/>
+                <FormattedMessage
+                    id='admin.plugin.multiple_versions_warning'
+                    defaultMessage='There are multiple versions of this plugin installed across your cluster. Re-install this plugin to ensure it works consistently.'
+                />
+            </div>
+        );
+    }
+
+    notices.push(
+        <PluginItemStateDescription
+            key='state-description'
+            state={pluginStatus.state}
+        />
+    );
+
+    const instances = pluginStatus.instances;
+    instances.sort((a, b) => {
+        if (a.cluster_id < b.cluster_id) {
+            return -1;
+        } else if (a.cluster_id > b.cluster_id) {
+            return 1;
+        }
+
+        return 0;
+    });
+
+    let clusterSummary;
+    if (showInstances) {
+        clusterSummary = (
+            <div className='padding-top x2 padding-bottom'>
+                <div className='row'>
+                    <div className='col-md-6'>
+                        <strong>
+                            <FormattedMessage
+                                id='admin.plugin.cluster_instance'
+                                defaultMessage='Cluster Instance'
+                            />
+                        </strong>
+                    </div>
+                    <div className='col-md-3'>
+                        <strong>
+                            <FormattedMessage
+                                id='admin.plugin.version_title'
+                                defaultMessage='Version'
+                            />
+                        </strong>
+                    </div>
+                    <div className='col-md-3'>
+                        <strong>
+                            <FormattedMessage
+                                id='admin.plugin.state'
+                                defaultMessage='State'
+                            />
+                        </strong>
+                    </div>
+                </div>
+                {instances.map((instance) => (
+                    <div
+                        key={instance.cluster_id}
+                        className='row'
+                    >
+                        <div className='col-md-6'>
+                            {instance.cluster_id}
+                        </div>
+                        <div className='col-md-3'>
+                            {instance.version}
+                        </div>
+                        <div className='col-md-3'>
+                            <PluginItemState state={instance.state}/>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <div>
+                <strong>{pluginStatus.name}</strong>
+                {' ('}
+                {pluginStatus.id}
+                {' - '}
+                {pluginStatus.version}
+                {prepackagedLabel}
+                {')'}
+            </div>
+            {description}
+            <div className='padding-top'>
+                {activateButton}
+                {removeButton}
+                {settingsButton}
+            </div>
+            <div>
+                {notices}
+            </div>
+            <div>
+                {clusterSummary}
+            </div>
+            <hr/>
+        </div>
+    );
+};
+
+PluginItem.propTypes = {
+    pluginStatus: PropTypes.object.isRequired,
+    removing: PropTypes.bool.isRequired,
+    handleActivate: PropTypes.func.isRequired,
+    handleDeactivate: PropTypes.func.isRequired,
+    handleRemove: PropTypes.func.isRequired,
+    showInstances: PropTypes.bool.isRequired,
+};
+
 export default class PluginManagement extends React.Component {
     static propTypes = {
-
-        /*
-         * The config
-         */
         config: PropTypes.object.isRequired,
-
-        /*
-         * Plugins object with ids as keys and manifests as values
-         */
-        plugins: PropTypes.object.isRequired,
-
+        pluginStatuses: PropTypes.object.isRequired,
         actions: PropTypes.shape({
-
-            /*
-             * Function to upload a plugin
-             */
             uploadPlugin: PropTypes.func.isRequired,
-
-            /*
-             * Function to remove a plugin
-             */
             removePlugin: PropTypes.func.isRequired,
-
-            /*
-             * Function to get installed plugins
-             */
-            getPlugins: PropTypes.func.isRequired,
-
-            /*
-             * Function to get installed plugins
-             */
+            getPluginStatuses: PropTypes.func.isRequired,
             activatePlugin: PropTypes.func.isRequired,
-
-            /*
-             * Function to get installed plugins
-             */
-            deactivatePlugin: PropTypes.func.isRequired
-        }).isRequired
+            deactivatePlugin: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
@@ -60,13 +403,13 @@ export default class PluginManagement extends React.Component {
             loading: true,
             fileSelected: false,
             fileName: null,
-            serverError: null
+            serverError: null,
         };
     }
 
     componentDidMount() {
         if (this.props.config.PluginSettings.Enable) {
-            this.props.actions.getPlugins().then(
+            this.props.actions.getPluginStatuses().then(
                 () => this.setState({loading: false})
             );
         }
@@ -105,7 +448,9 @@ export default class PluginManagement extends React.Component {
         }
     }
 
-    handleRemove = async (pluginId) => {
+    handleRemove = async (e) => {
+        e.preventDefault();
+        const pluginId = e.currentTarget.getAttribute('data-plugin-id');
         this.setState({removing: pluginId});
 
         const {error} = await this.props.actions.removePlugin(pluginId);
@@ -116,145 +461,26 @@ export default class PluginManagement extends React.Component {
         }
     }
 
-    handleActivate = async (pluginId) => {
-        this.setState({activating: pluginId});
+    handleActivate = async (e) => {
+        e.preventDefault();
+        const pluginId = e.currentTarget.getAttribute('data-plugin-id');
 
         const {error} = await this.props.actions.activatePlugin(pluginId);
-        this.setState({activating: null});
 
         if (error) {
             this.setState({serverError: error.message});
         }
     }
 
-    handleDeactivate = async (pluginId) => {
-        this.setState({deactivating: pluginId});
+    handleDeactivate = async (e) => {
+        e.preventDefault();
+        const pluginId = e.currentTarget.getAttribute('data-plugin-id');
 
         const {error} = await this.props.actions.deactivatePlugin(pluginId);
-        this.setState({deactivating: null});
 
         if (error) {
             this.setState({serverError: error.message});
         }
-    }
-
-    buildPluginItem = (p) => {
-        let activateButton;
-        if (p.active) {
-            const deactivating = this.state.deactivating === p.id;
-            activateButton = (
-                <a
-                    disabled={deactivating}
-                    onClick={() => this.handleDeactivate(p.id)}
-                >
-                    {deactivating ?
-                        <FormattedMessage
-                            id='admin.plugin.deactivating'
-                            defaultMessage='Deactivating...'
-                        /> :
-                        <FormattedMessage
-                            id='admin.plugin.deactivate'
-                            defaultMessage='Deactivate'
-                        />
-                    }
-                </a>
-            );
-        } else {
-            const activating = this.state.activating === p.id;
-            activateButton = (
-                <a
-                    disabled={activating}
-                    onClick={() => this.handleActivate(p.id)}
-                >
-                    {activating ?
-                        <FormattedMessage
-                            id='admin.plugin.activating'
-                            defaultMessage='Activating...'
-                        /> :
-                        <FormattedMessage
-                            id='admin.plugin.activate'
-                            defaultMessage='Activate'
-                        />
-                    }
-                </a>
-            );
-        }
-
-        let settingsButton;
-        if (p.settings_schema) {
-            settingsButton = (
-                <span>
-                    {' - '}
-                    <Link
-                        to={'/admin_console/plugins/custom/' + p.id}
-                    >
-                        <FormattedMessage
-                            id='admin.plugin.settingsButton'
-                            defaultMessage='Settings'
-                        />
-                    </Link>
-                </span>
-            );
-        }
-
-        let removeButtonText;
-        if (this.state.removing === p.id) {
-            removeButtonText = (
-                <FormattedMessage
-                    id='admin.plugin.removing'
-                    defaultMessage='Removing...'
-                />
-            );
-        } else {
-            removeButtonText = (
-                <FormattedMessage
-                    id='admin.plugin.remove'
-                    defaultMessage='Remove'
-                />
-            );
-        }
-
-        let description;
-        if (p.description) {
-            description = (
-                <div className='padding-top'>
-                    <strong>
-                        <FormattedMessage
-                            id='admin.plugin.desc'
-                            defaultMessage='Description:'
-                        />
-                    </strong>
-                    {' ' + p.description}
-                </div>
-            );
-        }
-
-        return (
-            <div key={p.id}>
-                <div>
-                    <strong>
-                        <FormattedMessage
-                            id='admin.plugin.id'
-                            defaultMessage='ID:'
-                        />
-                    </strong>
-                    {' ' + p.id}
-                </div>
-                {description}
-                <div className='padding-top'>
-                    {activateButton}
-                    {' - '}
-                    <a
-                        disabled={this.state.removing === p.id}
-                        onClick={() => this.handleRemove(p.id)}
-                    >
-                        {removeButtonText}
-                    </a>
-                    {settingsButton}
-                </div>
-                <hr/>
-            </div>
-        );
     }
 
     render() {
@@ -314,7 +540,7 @@ export default class PluginManagement extends React.Component {
 
         let pluginsList;
         let pluginsContainer;
-        const plugins = Object.values(this.props.plugins);
+        const plugins = Object.values(this.props.pluginStatuses);
         if (this.state.loading) {
             pluginsList = <LoadingScreen/>;
         } else if (plugins.length === 0) {
@@ -325,7 +551,27 @@ export default class PluginManagement extends React.Component {
                 />
             );
         } else {
-            pluginsList = plugins.map(this.buildPluginItem);
+            const showInstances = plugins.some((pluginStatus) => pluginStatus.instances.length > 1);
+            plugins.sort((a, b) => {
+                if (a.name < b.name) {
+                    return -1;
+                } else if (a.name > b.name) {
+                    return 1;
+                }
+
+                return 0;
+            });
+            pluginsList = plugins.map((pluginStatus) => (
+                <PluginItem
+                    key={pluginStatus.id}
+                    pluginStatus={pluginStatus}
+                    removing={this.state.removing === pluginStatus.id}
+                    handleActivate={this.handleActivate}
+                    handleDeactivate={this.handleDeactivate}
+                    handleRemove={this.handleRemove}
+                    showInstances={showInstances}
+                />
+            ));
 
             pluginsContainer = (
                 <div className='alert alert-transparent'>
@@ -335,6 +581,23 @@ export default class PluginManagement extends React.Component {
         }
 
         const enableUploads = this.props.config.PluginSettings.EnableUploads;
+        let uploadHelpText;
+        if (enableUploads) {
+            uploadHelpText = (
+                <FormattedHTMLMessage
+                    id='admin.plugin.uploadDesc'
+                    defaultMessage='Upload a plugin for your Mattermost server. See <a href="https://about.mattermost.com/default-plugin-uploads" target="_blank">documentation</a> to learn more.'
+                />
+            );
+        } else {
+            uploadHelpText = (
+                <FormattedHTMLMessage
+                    id='admin.plugin.uploadDisabledDesc'
+                    defaultMessage='To enable plugin uploads, go to <strong>Plugins > Configuration</strong>. See <a href="https://about.mattermost.com/default-plugin-uploads" target="_blank">documentation</a> to learn more.'
+                />
+            );
+        }
+
         const uploadBtnClass = enableUploads ? 'btn btn-primary' : 'btn';
 
         return (
@@ -389,10 +652,7 @@ export default class PluginManagement extends React.Component {
                             </div>
                             {serverError}
                             <p className='help-text'>
-                                <FormattedHTMLMessage
-                                    id='admin.plugin.uploadDesc'
-                                    defaultMessage='Upload a plugin for your Mattermost server. See <a href="https://about.mattermost.com/default-plugin-uploads" target="_blank">documentation</a> to learn more.'
-                                />
+                                {uploadHelpText}
                             </p>
                         </div>
                     </div>

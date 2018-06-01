@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -12,7 +12,7 @@ export default class RemoveFromTeamButton extends React.PureComponent {
         onError: PropTypes.func.isRequired,
         onMemberRemove: PropTypes.func.isRequired,
         team: PropTypes.object.isRequired,
-        user: PropTypes.object.isRequired
+        user: PropTypes.object.isRequired,
     };
 
     constructor(props) {

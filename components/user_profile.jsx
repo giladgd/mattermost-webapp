@@ -1,15 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {OverlayTrigger} from 'react-bootstrap';
 
 import Pluggable from 'plugins/pluggable';
-
 import * as Utils from 'utils/utils.jsx';
 
-import ProfilePopover from './profile_popover.jsx';
+import ProfilePopover from './profile_popover';
 
 export default class UserProfile extends React.Component {
     constructor(props) {
@@ -57,8 +56,8 @@ export default class UserProfile extends React.Component {
         let name = '...';
         let profileImg = '';
 
-        if (this.props.user) {
-            name = Utils.displayUsername(this.props.user.id);
+        if (this.props.user && this.props.user.id) {
+            name = Utils.getDisplayNameByUserId(this.props.user.id);
             profileImg = Utils.imageURLForUser(this.props.user);
         }
 
@@ -106,7 +105,7 @@ UserProfile.defaultProps = {
     overwriteImage: '',
     disablePopover: false,
     isRHS: false,
-    hasMention: false
+    hasMention: false,
 };
 UserProfile.propTypes = {
     user: PropTypes.object,
@@ -117,5 +116,5 @@ UserProfile.propTypes = {
     status: PropTypes.string,
     isBusy: PropTypes.bool,
     isRHS: PropTypes.bool,
-    hasMention: PropTypes.bool
+    hasMention: PropTypes.bool,
 };

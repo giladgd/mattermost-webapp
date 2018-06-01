@@ -1,11 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {FormattedMessage} from 'react-intl';
-
 import Chart from 'chart.js';
 
 import * as Utils from 'utils/utils.jsx';
@@ -31,21 +30,21 @@ export default class LineChart extends React.PureComponent {
         /*
          * Chart data
          */
-        data: PropTypes.object
+        data: PropTypes.object,
     };
 
     chart = null;
     chartOptions = {
         legend: {
-            display: false
-        }
+            display: false,
+        },
     };
 
     componentDidMount() {
         this.initChart();
     }
 
-    componentWillUpdate(nextProps) {
+    UNSAFE_componentWillUpdate(nextProps) { // eslint-disable-line camelcase
         const willHaveData = nextProps.data && nextProps.data.labels.length > 0;
         const hasChart = Boolean(this.chart);
 

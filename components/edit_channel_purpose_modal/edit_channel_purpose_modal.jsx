@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -46,8 +46,8 @@ export default class EditChannelPurposeModal extends React.Component {
             /*
              * Action creator to patch current channel
              */
-            patchChannel: PropTypes.func.isRequired
-        }).isRequired
+            patchChannel: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
@@ -57,15 +57,11 @@ export default class EditChannelPurposeModal extends React.Component {
             purpose: props.channel.purpose || '',
             serverError: '',
             show: true,
-            submitted: false
+            submitted: false,
         };
     }
 
-    componentDidMount() {
-        Utils.placeCaretAtEnd(this.refs.purpose);
-    }
-
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         const {requestStatus: nextRequestStatus, serverError: nextServerError} = nextProps;
         const {requestStatus} = this.props;
 
@@ -86,7 +82,7 @@ export default class EditChannelPurposeModal extends React.Component {
                 serverError: Utils.localizeMessage(
                     'edit_channel_purpose_modal.error',
                     'This channel purpose is too long, please enter a shorter one'
-                )
+                ),
             });
         } else {
             this.setState({serverError: err.message});
@@ -97,6 +93,10 @@ export default class EditChannelPurposeModal extends React.Component {
         this.setState({serverError: ''});
     }
 
+    handleEntering = () => {
+        Utils.placeCaretAtEnd(this.purpose);
+    }
+
     handleHide = () => {
         this.setState({show: false});
     }
@@ -104,10 +104,10 @@ export default class EditChannelPurposeModal extends React.Component {
     handleKeyDown = (e) => {
         const {ctrlSend} = this.props;
 
-        if (ctrlSend && e.keyCode === Constants.KeyCodes.ENTER && e.ctrlKey) {
+        if (ctrlSend && Utils.isKeyPressed(e, Constants.KeyCodes.ENTER) && e.ctrlKey) {
             e.preventDefault();
             this.handleSave(e);
-        } else if (!ctrlSend && e.keyCode === Constants.KeyCodes.ENTER && !e.shiftKey && !e.altKey) {
+        } else if (!ctrlSend && Utils.isKeyPressed(e, Constants.KeyCodes.ENTER) && !e.shiftKey && !e.altKey) {
             e.preventDefault();
             this.handleSave(e);
         }
@@ -127,6 +127,10 @@ export default class EditChannelPurposeModal extends React.Component {
         e.preventDefault();
         this.setState({purpose: e.target.value});
     }
+
+    getPurpose = (node) => {
+        this.purpose = node;
+    };
 
     render() {
         let serverError = null;
@@ -180,6 +184,7 @@ export default class EditChannelPurposeModal extends React.Component {
                 ref='modal'
                 show={this.state.show}
                 onHide={this.handleHide}
+                onEntering={this.handleEntering}
                 onExited={this.props.onModalDismissed}
             >
                 <Modal.Header closeButton={true}>
@@ -192,7 +197,7 @@ export default class EditChannelPurposeModal extends React.Component {
                         {channelPurposeModal}
                     </p>
                     <textarea
-                        ref='purpose'
+                        ref={this.getPurpose}
                         className='form-control no-resize'
                         rows='6'
                         maxLength='250'

@@ -1,24 +1,23 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
-
 import {getUserAudits} from 'mattermost-redux/actions/users';
 
 import AccessHistoryModal from './access_history_modal.jsx';
 
 function mapStateToProps(state, ownProps) {
     return {
-        ...ownProps
+        ...ownProps,
     };
 }
 
 function mapDispatchToProps(dispatch) {
     return {
         actions: bindActionCreators({
-            getUserAudits
-        }, dispatch)
+            getUserAudits,
+        }, dispatch),
     };
 }
 

@@ -1,24 +1,23 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
-
 import {revokeUserAccessToken} from 'mattermost-redux/actions/users';
 
 import RevokeTokenButton from './revoke_token_button.jsx';
 
 function mapStateToProps(state, ownProps) {
     return {
-        ...ownProps
+        ...ownProps,
     };
 }
 
 function mapDispatchToProps(dispatch) {
     return {
         actions: bindActionCreators({
-            revokeUserAccessToken
-        }, dispatch)
+            revokeUserAccessToken,
+        }, dispatch),
     };
 }
 

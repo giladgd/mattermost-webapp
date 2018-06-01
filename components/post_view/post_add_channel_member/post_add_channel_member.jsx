@@ -1,36 +1,36 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
-import {browserHistory} from 'react-router';
 
-import store from 'stores/redux_store.jsx';
-
+import {sendAddToChannelEphemeralPost} from 'actions/global_actions.jsx';
 import {Constants} from 'utils/constants.jsx';
-
 import AtMention from 'components/at_mention';
-
-const getState = store.getState;
 
 export default class PostAddChannelMember extends React.PureComponent {
     static propTypes = {
 
         /*
-        * Current team
+        * Current user
         */
-        team: PropTypes.object.isRequired,
+        currentUser: PropTypes.object.isRequired,
 
         /*
-        * Current channel
+        * Type of current channel
         */
-        channel: PropTypes.object.isRequired,
+        channelType: PropTypes.string.isRequired,
 
         /*
-        * post id of an ephemeral message
+        * ID of ephemeral post (at-mention's "add to channel" post)
         */
         postId: PropTypes.string.isRequired,
+
+        /*
+        * Ephemeral post (at-mention's "add to channel" post)
+        */
+        post: PropTypes.object.isRequired,
 
         /*
         * user ids to add to channel
@@ -50,30 +50,25 @@ export default class PostAddChannelMember extends React.PureComponent {
             addChannelMember: PropTypes.func.isRequired,
 
             /*
-            * Function to get post (ephemeral)
-            */
-            getPost: PropTypes.func.isRequired,
-
-            /*
             * Function to remove post (ephemeral)
             */
-            removePost: PropTypes.func.isRequired
-        }).isRequired
+            removePost: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     handleAddChannelMember = () => {
-        const {team, channel, postId, userIds} = this.props;
-        const post = this.props.actions.getPost(getState(), postId) || {};
+        const {currentUser, post, userIds, usernames} = this.props;
 
-        if (post.channel_id === channel.id) {
-            userIds.forEach((userId) => {
-                this.props.actions.addChannelMember(channel.id, userId, post.root_id);
+        if (post && post.channel_id) {
+            let createAt = post.create_at;
+            userIds.forEach((userId, index) => {
+                createAt++;
+                this.props.actions.addChannelMember(post.channel_id, userId);
+                sendAddToChannelEphemeralPost(currentUser, usernames[index], userId, post.channel_id, post.root_id, createAt);
             });
 
             this.props.actions.removePost(post);
         }
-
-        browserHistory.push(`/${team.name}/channels/${channel.name}`);
     }
 
     generateAtMentions(usernames = []) {
@@ -124,13 +119,17 @@ export default class PostAddChannelMember extends React.PureComponent {
     }
 
     render() {
-        const {channel, usernames} = this.props;
+        const {channelType, postId, usernames} = this.props;
+        if (!postId || !channelType) {
+            return null;
+        }
+
         let linkId;
         let linkText;
-        if (channel.type === Constants.PRIVATE_CHANNEL) {
+        if (channelType === Constants.PRIVATE_CHANNEL) {
             linkId = 'post_body.check_for_out_of_channel_mentions.link.private';
             linkText = 'add them to this private channel';
-        } else if (channel.type === Constants.OPEN_CHANNEL) {
+        } else if (channelType === Constants.OPEN_CHANNEL) {
             linkId = 'post_body.check_for_out_of_channel_mentions.link.public';
             linkText = 'add them to the channel';
         }

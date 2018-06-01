@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -7,7 +7,6 @@ import {FormattedMessage} from 'react-intl';
 
 import Constants from 'utils/constants.jsx';
 import * as PostUtils from 'utils/post_utils.jsx';
-
 import PostInfo from 'components/post_view/post_info';
 import UserProfile from 'components/user_profile.jsx';
 
@@ -40,11 +39,6 @@ export default class PostHeader extends React.PureComponent {
         compactDisplay: PropTypes.bool,
 
         /*
-         * Set to render the post as if it was part of the previous post
-         */
-        consecutivePostByUser: PropTypes.bool,
-
-        /*
          * The method for displaying the post creator's name
          */
         displayNameType: PropTypes.string,
@@ -64,6 +58,11 @@ export default class PostHeader extends React.PureComponent {
          */
         replyCount: PropTypes.number,
 
+        /**
+         * Set to indicate that this is previous post was not a reply to the same thread
+         */
+        isFirstReply: PropTypes.bool,
+
         /*
          * Post identifiers for selenium tests
          */
@@ -72,17 +71,29 @@ export default class PostHeader extends React.PureComponent {
         /**
          * Function to get the post list HTML element
          */
-        getPostList: PropTypes.func.isRequired
-    }
+        getPostList: PropTypes.func.isRequired,
 
-    constructor(props) {
-        super(props);
-        this.state = {};
+        /**
+         * Set to mark post as being hovered over
+         */
+        hover: PropTypes.bool.isRequired,
+
+        /*
+         * Set to render the post time when not hovering
+         */
+        showTimeWithoutHover: PropTypes.bool,
+
+        /**
+         * Whether or not the post username can be overridden.
+         */
+        enablePostUsernameOverride: PropTypes.bool.isRequired,
     }
 
     render() {
         const post = this.props.post;
         const isSystemMessage = PostUtils.isSystemMessage(post);
+        const fromAutoResponder = PostUtils.fromAutoResponder(post);
+        const fromWebhook = post && post.props && post.props.from_webhook === 'true';
 
         let userProfile = (
             <UserProfile
@@ -93,11 +104,11 @@ export default class PostHeader extends React.PureComponent {
                 hasMention={true}
             />
         );
-        let botIndicator;
+        let indicator;
         let colon;
 
-        if (post.props && post.props.from_webhook) {
-            if (post.props.override_username && global.window.mm_config.EnablePostUsernameOverride === 'true') {
+        if (fromWebhook) {
+            if (post.props.override_username && this.props.enablePostUsernameOverride) {
                 userProfile = (
                     <UserProfile
                         user={this.props.user}
@@ -115,7 +126,33 @@ export default class PostHeader extends React.PureComponent {
                 );
             }
 
-            botIndicator = <div className='bot-indicator'>{Constants.BOT_NAME}</div>;
+            indicator = (
+                <div className='bot-indicator'>
+                    <FormattedMessage
+                        id='post_info.bot'
+                        defaultMessage='BOT'
+                    />
+                </div>
+            );
+        } else if (fromAutoResponder) {
+            userProfile = (
+                <UserProfile
+                    user={this.props.user}
+                    displayNameType={this.props.displayNameType}
+                    status={this.props.status}
+                    isBusy={this.props.isBusy}
+                    hasMention={true}
+                />
+            );
+
+            indicator = (
+                <div className='bot-indicator'>
+                    <FormattedMessage
+                        id='post_info.auto_responder'
+                        defaultMessage='AUTOMATIC REPLY'
+                    />
+                </div>
+            );
         } else if (isSystemMessage) {
             userProfile = (
                 <UserProfile
@@ -139,7 +176,7 @@ export default class PostHeader extends React.PureComponent {
         return (
             <div className='post__header'>
                 <div className='col col__name'>{userProfile}{colon}</div>
-                {botIndicator}
+                {indicator}
                 <div className='col'>
                     <PostInfo
                         post={post}
@@ -148,8 +185,10 @@ export default class PostHeader extends React.PureComponent {
                         compactDisplay={this.props.compactDisplay}
                         lastPostCount={this.props.lastPostCount}
                         replyCount={this.props.replyCount}
-                        consecutivePostByUser={this.props.consecutivePostByUser}
+                        isFirstReply={this.props.isFirstReply}
+                        showTimeWithoutHover={this.props.showTimeWithoutHover}
                         getPostList={this.props.getPostList}
+                        hover={this.props.hover}
                     />
                 </div>
             </div>

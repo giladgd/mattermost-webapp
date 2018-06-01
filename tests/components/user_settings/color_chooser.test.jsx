@@ -1,12 +1,12 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {shallow} from 'enzyme';
 
-import ColorChooser from 'components/user_settings/color_chooser.jsx';
+import ColorChooser from 'components/user_settings/display/color_chooser.jsx';
 
-describe('components/user_settings/ColorChooser', () => {
+describe('components/user_settings/display/ColorChooser', () => {
     it('should match, init', () => {
         const wrapper = shallow(
             <ColorChooser

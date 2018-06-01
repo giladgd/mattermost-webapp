@@ -1,9 +1,9 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import assert from 'assert';
 
-import * as Markdown from 'utils/markdown.jsx';
+import * as Markdown from 'utils/markdown';
 
 describe('Markdown.Imgs', function() {
     it('Inline mage', function(done) {

@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import EventEmitter from 'events';
 
@@ -9,7 +9,6 @@ import * as Selectors from 'mattermost-redux/selectors/entities/users';
 import ChannelStore from 'stores/channel_store.jsx';
 import store from 'stores/redux_store.jsx';
 import TeamStore from 'stores/team_store.jsx';
-
 import Constants from 'utils/constants.jsx';
 
 const UserStatuses = Constants.UserStatuses;
@@ -24,47 +23,52 @@ const CHANGE_EVENT_SESSIONS = 'change_sessions';
 const CHANGE_EVENT_AUDITS = 'change_audits';
 const CHANGE_EVENT_STATUSES = 'change_statuses';
 
-var Utils;
-
 class UserStoreClass extends EventEmitter {
     constructor() {
         super();
 
-        this.noAccounts = false;
         this.entities = {};
 
         store.subscribe(() => {
             const newEntities = store.getState().entities.users;
+            const entities = this.entities;
+            this.entities = newEntities;
 
-            if (newEntities.profiles !== this.entities.profiles) {
+            if (newEntities.profiles !== entities.profiles) {
                 this.emitChange();
             }
-            if (newEntities.profilesInChannel !== this.entities.profilesInChannel) {
+
+            if (newEntities.profilesInChannel !== entities.profilesInChannel) {
                 this.emitInChannelChange();
             }
-            if (newEntities.profilesNotInChannel !== this.entities.profilesNotInChannel) {
+
+            if (newEntities.profilesNotInChannel !== entities.profilesNotInChannel) {
                 this.emitNotInChannelChange();
             }
-            if (newEntities.profilesInTeam !== this.entities.profilesInTeam) {
+
+            if (newEntities.profilesInTeam !== entities.profilesInTeam) {
                 this.emitInTeamChange();
             }
-            if (newEntities.profilesNotInTeam !== this.entities.profilesNotInTeam) {
+
+            if (newEntities.profilesNotInTeam !== entities.profilesNotInTeam) {
                 this.emitNotInTeamChange();
             }
-            if (newEntities.profilesWithoutTeam !== this.entities.profilesWithoutTeam) {
+
+            if (newEntities.profilesWithoutTeam !== entities.profilesWithoutTeam) {
                 this.emitWithoutTeamChange();
             }
-            if (newEntities.statuses !== this.entities.statuses) {
+
+            if (newEntities.statuses !== entities.statuses) {
                 this.emitStatusesChange();
             }
-            if (newEntities.myAudits !== this.entities.myAudits) {
+
+            if (newEntities.myAudits !== entities.myAudits) {
                 this.emitAuditsChange();
             }
-            if (newEntities.mySessions !== this.entities.mySessions) {
+
+            if (newEntities.mySessions !== entities.mySessions) {
                 this.emitSessionsChange();
             }
-
-            this.entities = newEntities;
         });
     }
 
@@ -309,7 +313,7 @@ class UserStoreClass extends EventEmitter {
     saveProfile(profile) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE,
-            data: profile
+            data: profile,
         });
     }
 
@@ -324,8 +328,7 @@ class UserStoreClass extends EventEmitter {
     removeProfileFromTeam(teamId, userId) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_NOT_IN_TEAM,
-            data: {user_id: userId},
-            id: teamId
+            data: {id: teamId, user_id: userId},
         });
     }
 
@@ -360,8 +363,7 @@ class UserStoreClass extends EventEmitter {
     removeProfileNotInTeam(teamId, userId) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_IN_TEAM,
-            data: {user_id: userId},
-            id: teamId
+            data: {id: teamId, user_id: userId},
         });
     }
 
@@ -370,24 +372,21 @@ class UserStoreClass extends EventEmitter {
     saveProfileInChannel(channelId = ChannelStore.getCurrentId(), profile) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_IN_CHANNEL,
-            data: {user_id: profile.id},
-            id: channelId
+            data: {id: channelId, user_id: profile.id},
         });
     }
 
     saveUserIdInChannel(channelId = ChannelStore.getCurrentId(), userId) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_IN_CHANNEL,
-            data: {user_id: userId},
-            id: channelId
+            data: {id: channelId, user_id: userId},
         });
     }
 
     removeProfileInChannel(channelId, userId) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_NOT_IN_CHANNEL,
-            data: {user_id: userId},
-            id: channelId
+            data: {id: channelId, user_id: userId},
         });
     }
 
@@ -400,16 +399,14 @@ class UserStoreClass extends EventEmitter {
     saveProfileNotInChannel(channelId = ChannelStore.getCurrentId(), profile) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_NOT_IN_CHANNEL,
-            data: {user_id: profile.id},
-            id: channelId
+            data: {id: channelId, user_id: profile.id},
         });
     }
 
     removeProfileNotInChannel(channelId, userId) {
         store.dispatch({
             type: UserTypes.RECEIVED_PROFILE_IN_CHANNEL,
-            data: {user_id: userId},
-            id: channelId
+            data: {id: channelId, user_id: userId},
         });
     }
 
@@ -437,46 +434,11 @@ class UserStoreClass extends EventEmitter {
         return store.getState().entities.users.myAudits;
     }
 
-    getCurrentMentionKeys() {
-        return this.getMentionKeys(this.getCurrentId());
-    }
-
-    getMentionKeys(id) {
-        var user = this.getProfile(id);
-
-        var keys = [];
-
-        if (!user || !user.notify_props) {
-            return keys;
-        }
-
-        if (user.notify_props.mention_keys) {
-            keys = keys.concat(user.notify_props.mention_keys.split(','));
-        }
-
-        if (user.notify_props.first_name === 'true' && user.first_name) {
-            keys.push(user.first_name);
-        }
-
-        if (user.notify_props.channel === 'true') {
-            keys.push('@channel');
-            keys.push('@all');
-            keys.push('@here');
-        }
-
-        const usernameKey = '@' + user.username;
-        if (keys.indexOf(usernameKey) === -1) {
-            keys.push(usernameKey);
-        }
-
-        return keys;
-    }
-
     setStatus(userId, status) {
         const data = [{user_id: userId, status}];
         store.dispatch({
             type: UserTypes.RECEIVED_STATUSES,
-            data
+            data,
         });
     }
 
@@ -494,20 +456,6 @@ class UserStoreClass extends EventEmitter {
 
     setNoAccounts(noAccounts) {
         this.noAccounts = noAccounts;
-    }
-
-    isSystemAdminForCurrentUser() {
-        if (!Utils) {
-            Utils = require('utils/utils.jsx'); //eslint-disable-line global-require
-        }
-
-        var current = this.getCurrentUser();
-
-        if (current) {
-            return Utils.isSystemAdmin(current.roles);
-        }
-
-        return false;
     }
 }
 

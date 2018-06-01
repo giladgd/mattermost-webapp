@@ -1,13 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 
-import Constants from 'utils/constants.jsx';
+import Constants, {FileTypes} from 'utils/constants.jsx';
+import {getFileType} from 'utils/utils';
 
-import FileAttachment from 'components/file_attachment.jsx';
-import ViewImageModal from 'components/view_image.jsx';
+import FileAttachment from 'components/file_attachment';
+import SingleImageView from 'components/single_image_view';
+import ViewImageModal from 'components/view_image';
 
 export default class FileAttachmentList extends React.Component {
     static propTypes = {
@@ -32,13 +34,15 @@ export default class FileAttachmentList extends React.Component {
          */
         compactDisplay: PropTypes.bool,
 
+        isEmbedVisible: PropTypes.bool,
+
         actions: PropTypes.shape({
 
             /*
              * Function to get file metadata for a post
              */
-            getMissingFilesForPost: PropTypes.func.isRequired
-        }).isRequired
+            getMissingFilesForPost: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
@@ -59,48 +63,79 @@ export default class FileAttachmentList extends React.Component {
         this.setState({showPreviewModal: true, startImgIndex: indexClicked});
     }
 
+    hidePreviewModal = () => {
+        this.setState({showPreviewModal: false});
+    }
+
     render() {
+        const {fileInfos, fileCount, compactDisplay} = this.props;
+
+        if (compactDisplay === false) {
+            if (fileInfos && fileInfos.length === 1) {
+                const fileType = getFileType(fileInfos[0].extension);
+
+                if (fileType === FileTypes.IMAGE || fileType === FileTypes.SVG) {
+                    return (
+                        <SingleImageView
+                            fileInfo={fileInfos[0]}
+                            isEmbedVisible={this.props.isEmbedVisible}
+                            post={this.props.post}
+                        />
+                    );
+                }
+            } else if (fileCount === 1 && this.props.isEmbedVisible) {
+                return (
+                    <div style={style.minHeightPlaceholder}/>
+                );
+            }
+        }
+
         const postFiles = [];
-        let fileInfos = [];
-        if (this.props.fileInfos && this.props.fileInfos.length > 0) {
-            fileInfos = this.props.fileInfos.sort((a, b) => a.create_at - b.create_at);
-            for (let i = 0; i < Math.min(fileInfos.length, Constants.MAX_DISPLAY_FILES); i++) {
-                const fileInfo = fileInfos[i];
+        let sortedFileInfos = [];
+
+        if (fileInfos && fileInfos.length > 0) {
+            sortedFileInfos = fileInfos.sort((a, b) => a.create_at - b.create_at);
+            for (let i = 0; i < Math.min(sortedFileInfos.length, Constants.MAX_DISPLAY_FILES); i++) {
+                const fileInfo = sortedFileInfos[i];
 
                 postFiles.push(
                     <FileAttachment
                         key={fileInfo.id}
-                        fileInfo={fileInfos[i]}
+                        fileInfo={sortedFileInfos[i]}
                         index={i}
                         handleImageClick={this.handleImageClick}
-                        compactDisplay={this.props.compactDisplay}
+                        compactDisplay={compactDisplay}
                     />
                 );
             }
-        } else if (this.props.fileCount > 0) {
-            for (let i = 0; i < Math.min(this.props.fileCount, Constants.MAX_DISPLAY_FILES); i++) {
+        } else if (fileCount > 0) {
+            for (let i = 0; i < Math.min(fileCount, Constants.MAX_DISPLAY_FILES); i++) {
                 // Add a placeholder to avoid pop-in once we get the file infos for this post
                 postFiles.push(
                     <div
                         key={`fileCount-${i}`}
                         className='post-image__column post-image__column--placeholder'
                     />
-            );
+                );
             }
         }
 
         return (
-            <div>
+            <React.Fragment>
                 <div className='post-image__columns clearfix'>
                     {postFiles}
                 </div>
                 <ViewImageModal
                     show={this.state.showPreviewModal}
-                    onModalDismissed={() => this.setState({showPreviewModal: false})}
+                    onModalDismissed={this.hidePreviewModal}
                     startIndex={this.state.startImgIndex}
-                    fileInfos={fileInfos}
+                    fileInfos={sortedFileInfos}
                 />
-            </div>
+            </React.Fragment>
         );
     }
 }
+
+const style = {
+    minHeightPlaceholder: {minHeight: '385px'},
+};

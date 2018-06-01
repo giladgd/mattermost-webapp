@@ -1,8 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import PropTypes from 'prop-types';
 import React, {Component} from 'react';
 
@@ -22,43 +21,52 @@ export default class DotMenu extends Component {
         post: PropTypes.object.isRequired,
         commentCount: PropTypes.number,
         isFlagged: PropTypes.bool,
+        isRHS: PropTypes.bool,
         handleCommentClick: PropTypes.func,
         handleDropdownOpened: PropTypes.func,
+        isReadOnly: PropTypes.bool,
 
         actions: PropTypes.shape({
 
-            /*
+            /**
              * Function flag the post
              */
             flagPost: PropTypes.func.isRequired,
 
-            /*
+            /**
              * Function to unflag the post
              */
             unflagPost: PropTypes.func.isRequired,
 
-            /*
-             * Function to set the edting post
+            /**
+             * Function to set the editing post
              */
             setEditingPost: PropTypes.func.isRequired,
 
-            /*
+            /**
              * Function to pin the post
              */
             pinPost: PropTypes.func.isRequired,
 
-            /*
+            /**
              * Function to unpin the post
              */
-            unpinPost: PropTypes.func.isRequired
-        }).isRequired
+            unpinPost: PropTypes.func.isRequired,
+
+            /**
+             * Function to open a modal
+             */
+            openModal: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     static defaultProps = {
         idCount: -1,
         post: {},
         commentCount: 0,
-        isFlagged: false
+        isFlagged: false,
+        isRHS: false,
+        isReadOnly: false,
     }
 
     constructor(props) {
@@ -68,7 +76,7 @@ export default class DotMenu extends Component {
 
         this.state = {
             canDelete: PostUtils.canDeletePost(props.post),
-            canEdit: PostUtils.canEditPost(props.post, this.editDisableAction)
+            canEdit: PostUtils.canEditPost(props.post, this.editDisableAction),
         };
     }
 
@@ -77,12 +85,12 @@ export default class DotMenu extends Component {
         $('#' + this.props.idPrefix + '_dropdown' + this.props.post.id).on('hidden.bs.dropdown', () => this.props.handleDropdownOpened(false));
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         if (nextProps.post !== this.props.post) {
-            this.state = {
+            this.setState({
                 canDelete: PostUtils.canDeletePost(nextProps.post),
-                canEdit: PostUtils.canEditPost(nextProps.post, this.editDisableAction)
-            };
+                canEdit: PostUtils.canEditPost(nextProps.post, this.editDisableAction),
+            });
         }
     }
 
@@ -109,7 +117,7 @@ export default class DotMenu extends Component {
         const isSystemMessage = PostUtils.isSystemMessage(this.props.post);
         const isMobile = Utils.isMobile();
 
-        if (this.props.idPrefix === Constants.CENTER && (!isMobile && isSystemMessage && !this.state.canDelete && !this.state.canEdit)) {
+        if (this.props.idPrefix === Constants.CENTER && isSystemMessage && !this.state.canDelete && !this.state.canEdit) {
             return null;
         }
 
@@ -125,7 +133,7 @@ export default class DotMenu extends Component {
         const idPrefix = this.props.idPrefix + 'DotMenu';
 
         let dotMenuFlag = null;
-        if (isMobile) {
+        if (isMobile && !isSystemMessage) {
             dotMenuFlag = (
                 <DotMenuFlag
                     idPrefix={idPrefix + 'Flag'}
@@ -134,7 +142,7 @@ export default class DotMenu extends Component {
                     isFlagged={this.props.isFlagged}
                     actions={{
                         flagPost: this.props.actions.flagPost,
-                        unflagPost: this.props.actions.unflagPost
+                        unflagPost: this.props.actions.unflagPost,
                     }}
                 />
             );
@@ -161,18 +169,19 @@ export default class DotMenu extends Component {
                     post={this.props.post}
                 />
             );
-
-            dotMenuPin = (
-                <DotMenuItem
-                    idPrefix={idPrefix + 'Pin'}
-                    idCount={this.props.idCount}
-                    post={this.props.post}
-                    actions={{
-                        pinPost: this.props.actions.pinPost,
-                        unpinPost: this.props.actions.unpinPost
-                    }}
-                />
-            );
+            if (!this.props.isReadOnly) {
+                dotMenuPin = (
+                    <DotMenuItem
+                        idPrefix={idPrefix + 'Pin'}
+                        idCount={this.props.idCount}
+                        post={this.props.post}
+                        actions={{
+                            pinPost: this.props.actions.pinPost,
+                            unpinPost: this.props.actions.unpinPost,
+                        }}
+                    />
+                );
+            }
         }
 
         let dotMenuDelete = null;
@@ -180,9 +189,13 @@ export default class DotMenu extends Component {
             dotMenuDelete = (
                 <DotMenuItem
                     idPrefix={idPrefix + 'Delete'}
+                    isRHS={this.props.isRHS}
                     idCount={this.props.idCount}
                     post={this.props.post}
                     commentCount={type === 'Post' ? this.props.commentCount : 0}
+                    actions={{
+                        openModal: this.props.actions.openModal,
+                    }}
                 />
             );
         }
@@ -192,12 +205,13 @@ export default class DotMenu extends Component {
             dotMenuEdit = (
                 <DotMenuEdit
                     idPrefix={idPrefix + 'Edit'}
+                    isRHS={this.props.isRHS}
                     idCount={this.props.idCount}
                     post={this.props.post}
                     type={type}
                     commentCount={type === 'Post' ? this.props.commentCount : 0}
                     actions={{
-                        setEditingPost: this.props.actions.setEditingPost
+                        setEditingPost: this.props.actions.setEditingPost,
                     }}
                 />
             );

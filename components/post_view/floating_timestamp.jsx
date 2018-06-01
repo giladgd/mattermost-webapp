@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -10,7 +10,7 @@ export default class FloatingTimestamp extends React.PureComponent {
         isScrolling: PropTypes.bool.isRequired,
         isMobile: PropTypes.bool,
         createAt: PropTypes.number,
-        isRhsPost: PropTypes.bool
+        isRhsPost: PropTypes.bool,
     }
 
     render() {

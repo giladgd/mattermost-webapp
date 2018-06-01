@@ -1,17 +1,15 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import PropTypes from 'prop-types';
 import React from 'react';
 
 import Constants from 'utils/constants.jsx';
 import * as SyntaxHighlighting from 'utils/syntax_highlighting.jsx';
-
 import loadingGif from 'images/load.gif';
 
-import FileInfoPreview from './file_info_preview.jsx';
+import FileInfoPreview from 'components/file_info_preview';
 
 export default class CodePreview extends React.Component {
     constructor(props) {
@@ -25,7 +23,7 @@ export default class CodePreview extends React.Component {
             code: '',
             lang: '',
             loading: true,
-            success: true
+            success: true,
         };
     }
 
@@ -33,7 +31,7 @@ export default class CodePreview extends React.Component {
         this.updateStateFromProps(this.props);
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         if (this.props.fileUrl !== nextProps.fileUrl) {
             this.updateStateFromProps(nextProps);
         }
@@ -55,7 +53,7 @@ export default class CodePreview extends React.Component {
             type: 'GET',
             dataType: 'text',
             error: this.handleReceivedError,
-            success: this.handleReceivedCode
+            success: this.handleReceivedCode,
         });
     }
 
@@ -67,7 +65,7 @@ export default class CodePreview extends React.Component {
         this.setState({
             code,
             loading: false,
-            success: true
+            success: true,
         });
     }
 
@@ -139,5 +137,5 @@ export default class CodePreview extends React.Component {
 
 CodePreview.propTypes = {
     fileInfo: PropTypes.object.isRequired,
-    fileUrl: PropTypes.string.isRequired
+    fileUrl: PropTypes.string.isRequired,
 };

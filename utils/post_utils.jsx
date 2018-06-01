@@ -1,22 +1,26 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
-import React from 'react';
+import {Client4} from 'mattermost-redux/client';
+import {getLicense, getConfig} from 'mattermost-redux/selectors/entities/general';
+import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
+import {getChannel} from 'mattermost-redux/selectors/entities/channels';
+import {Permissions} from 'mattermost-redux/constants';
 
-import {Parser, ProcessNodeDefinitions} from 'html-to-react';
-
-import ChannelStore from 'stores/channel_store.jsx';
-import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
+import store from 'stores/redux_store.jsx';
 
 import Constants from 'utils/constants.jsx';
+import {formatWithRenderer} from 'utils/markdown';
+import MentionableRenderer from 'utils/markdown/mentionable_renderer';
 import * as Utils from 'utils/utils.jsx';
-
-import AtMention from 'components/at_mention';
-import MarkdownImage from 'components/markdown_image';
 
 export function isSystemMessage(post) {
     return Boolean(post.type && (post.type.lastIndexOf(Constants.SYSTEM_MESSAGE_PREFIX) === 0));
+}
+
+export function fromAutoResponder(post) {
+    return Boolean(post.type && (post.type === Constants.AUTO_RESPONDER));
 }
 
 export function isFromWebhook(post) {
@@ -38,15 +42,27 @@ export function isEdited(post) {
     return post.edit_at > 0;
 }
 
+export function getImageSrc(src, hasImageProxy) {
+    if (hasImageProxy) {
+        return Client4.getBaseRoute() + '/image?url=' + encodeURIComponent(src);
+    }
+    return src;
+}
+
 export function getProfilePicSrcForPost(post, user) {
+    const config = getConfig(store.getState());
     let src = '';
     if (user && user.id === post.user_id) {
         src = Utils.imageURLForUser(user);
-    } else {
+    } else if (post.user_id) {
         src = Utils.imageURLForUser(post.user_id);
     }
 
-    if (post.props && post.props.from_webhook && !post.props.use_user_icon && global.window.mm_config.EnablePostIconOverride === 'true') {
+    if (fromAutoResponder(post)) {
+        return src;
+    }
+
+    if (post.props && post.props.from_webhook && !post.props.use_user_icon && config.EnablePostIconOverride === 'true') {
         if (post.props.override_icon_url) {
             src = post.props.override_icon_url;
         } else {
@@ -63,31 +79,35 @@ export function canDeletePost(post) {
     if (post.type === Constants.PostTypes.FAKE_PARENT_DELETED) {
         return false;
     }
+    const channel = getChannel(store.getState(), post.channel_id);
 
-    const isOwner = isPostOwner(post);
-    const isSystemAdmin = UserStore.isSystemAdminForCurrentUser();
-    const isTeamAdmin = TeamStore.isTeamAdminForCurrentTeam() || isSystemAdmin;
-    const isChannelAdmin = ChannelStore.isChannelAdminForCurrentChannel() || isTeamAdmin;
-    const isAdmin = isChannelAdmin || isTeamAdmin || isSystemAdmin;
-
-    if (global.window.mm_license.IsLicensed === 'true') {
-        return (global.window.mm_config.RestrictPostDelete === Constants.PERMISSIONS_DELETE_POST_ALL && (isOwner || isChannelAdmin)) ||
-            (global.window.mm_config.RestrictPostDelete === Constants.PERMISSIONS_DELETE_POST_TEAM_ADMIN && isTeamAdmin) ||
-            (global.window.mm_config.RestrictPostDelete === Constants.PERMISSIONS_DELETE_POST_SYSTEM_ADMIN && isSystemAdmin);
+    if (isPostOwner(post)) {
+        return haveIChannelPermission(store.getState(), {channel: post.channel_id, team: channel && channel.team_id, permission: Permissions.DELETE_POST});
     }
-
-    return isOwner || isAdmin;
+    return haveIChannelPermission(store.getState(), {channel: post.channel_id, team: channel && channel.team_id, permission: Permissions.DELETE_OTHERS_POSTS});
 }
 
 export function canEditPost(post, editDisableAction) {
-    const isOwner = isPostOwner(post);
-    let canEdit = isOwner && !isSystemMessage(post);
+    if (isSystemMessage(post)) {
+        return false;
+    }
 
-    if (canEdit && global.window.mm_license.IsLicensed === 'true') {
-        if (global.window.mm_config.AllowEditPost === Constants.ALLOW_EDIT_POST_NEVER) {
-            canEdit = false;
-        } else if (global.window.mm_config.AllowEditPost === Constants.ALLOW_EDIT_POST_TIME_LIMIT) {
-            const timeLeft = (post.create_at + (global.window.mm_config.PostEditTimeLimit * 1000)) - Utils.getTimestamp();
+    let canEdit = false;
+    const license = getLicense(store.getState());
+    const config = getConfig(store.getState());
+    const channel = getChannel(store.getState(), post.channel_id);
+
+    const isOwner = isPostOwner(post);
+    canEdit = haveIChannelPermission(store.getState(), {channel: post.channel_id, team: channel && channel.team_id, permission: Permissions.EDIT_POST});
+    if (!isOwner) {
+        // I only can edit my posts, at least until phase-2
+        //canEdit = canEdit && haveIChannelPermission(store.getState(), {channel: post.channel_id, team: channel && channel.team_id, permission: Permissions.EDIT_OTHERS_POSTS});
+        canEdit = false;
+    }
+
+    if (canEdit && license.IsLicensed === 'true') {
+        if (config.PostEditTimeLimit !== '-1' && config.PostEditTimeLimit !== -1) {
+            const timeLeft = (post.create_at + (config.PostEditTimeLimit * 1000)) - Utils.getTimestamp();
             if (timeLeft > 0) {
                 editDisableAction.fireAfter(timeLeft + 1000);
             } else {
@@ -95,6 +115,7 @@ export function canEditPost(post, editDisableAction) {
             }
         }
     }
+
     return canEdit;
 }
 
@@ -118,70 +139,13 @@ export function shouldShowDotMenu(post) {
     return false;
 }
 
-export function containsAtMention(text, key) {
-    if (!text || !key) {
+export function containsAtChannel(text) {
+    // Don't warn for slash commands
+    if (!text || text.startsWith('/')) {
         return false;
     }
 
-    // This doesn't work for at mentions containing periods or hyphens
-    return new RegExp(`\\B${key}\\b`, 'i').test(removeCode(text));
-}
+    const mentionableText = formatWithRenderer(text, new MentionableRenderer());
 
-// Returns a given text string with all Markdown code replaced with whitespace.
-export function removeCode(text) {
-    // These patterns should match the ones in app/notification.go, except JavaScript doesn't
-    // support \z for the end of the text in multiline mode, so we use $(?![\r\n])
-    const codeBlockPattern = /^[^\S\n]*[`~]{3}.*$[\s\S]+?(^[^\S\n]*[`~]{3}$|$(?![\r\n]))/mg;
-    const inlineCodePattern = /`+(?:.+?|.*?(.*?\S.*?\n)*.*?)`+/mg;
-
-    return text.replace(codeBlockPattern, '').replace(inlineCodePattern, ' ');
-}
-
-export function postMessageHtmlToComponent(html, isRHS = false) {
-    const parser = new Parser();
-    const attrib = 'data-mention';
-    const processNodeDefinitions = new ProcessNodeDefinitions(React);
-
-    function isValidNode() {
-        return true;
-    }
-
-    const processingInstructions = [
-        {
-            replaceChildren: true,
-            shouldProcessNode: (node) => node.attribs && node.attribs[attrib],
-            processNode: (node) => {
-                const mentionName = node.attribs[attrib];
-                const callAtMention = (
-                    <AtMention
-                        mentionName={mentionName}
-                        isRHS={isRHS}
-                        hasMention={true}
-                    />
-                );
-                return callAtMention;
-            }
-        },
-        {
-            shouldProcessNode: (node) => node.type === 'tag' && node.name === 'img',
-            processNode: (node) => {
-                const {
-                    class: className,
-                    ...attribs
-                } = node.attribs;
-                const callMarkdownImage = (
-                    <MarkdownImage
-                        className={className}
-                        {...attribs}
-                    />
-                );
-                return callMarkdownImage;
-            }
-        },
-        {
-            shouldProcessNode: () => true,
-            processNode: processNodeDefinitions.processDefaultNode
-        }
-    ];
-    return parser.parseWithInstructions(html, isValidNode, processingInstructions);
+    return (/\B@(all|channel)\b/i).test(mentionableText);
 }

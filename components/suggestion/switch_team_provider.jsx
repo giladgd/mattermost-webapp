@@ -1,14 +1,12 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
-
 import * as Selectors from 'mattermost-redux/selectors/entities/teams';
 
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import LocalizationStore from 'stores/localization_store.jsx';
 import store from 'stores/redux_store.jsx';
-
 import {ActionTypes} from 'utils/constants.jsx';
 
 import Provider from './provider.jsx';
@@ -84,7 +82,7 @@ export default class SwitchTeamProvider extends Provider {
                     matchedPretext: teamPrefix,
                     terms: teamNames,
                     items: teams,
-                    component: SwitchTeamSuggestion
+                    component: SwitchTeamSuggestion,
                 });
             }, 0);
 

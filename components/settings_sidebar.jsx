@@ -1,8 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import PropTypes from 'prop-types';
 import React from 'react';
 
@@ -67,8 +66,8 @@ SettingsSidebar.propTypes = {
     tabs: PropTypes.arrayOf(PropTypes.shape({
         name: PropTypes.string.isRequired,
         uiName: PropTypes.string.isRequired,
-        icon: PropTypes.string.isRequired
+        icon: PropTypes.string.isRequired,
     })).isRequired,
     activeTab: PropTypes.string,
-    updateTab: PropTypes.func.isRequired
+    updateTab: PropTypes.func.isRequired,
 };

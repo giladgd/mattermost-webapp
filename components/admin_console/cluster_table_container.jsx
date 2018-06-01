@@ -1,10 +1,9 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 
 import {getClusterStatus} from 'actions/admin_actions.jsx';
-
 import LoadingScreen from '../loading_screen.jsx';
 
 import ClusterTable from './cluster_table.jsx';
@@ -19,7 +18,7 @@ export default class ClusterTableContainer extends React.Component {
         this.interval = null;
 
         this.state = {
-            clusterInfos: null
+            clusterInfos: null,
         };
     }
 
@@ -27,14 +26,14 @@ export default class ClusterTableContainer extends React.Component {
         getClusterStatus(
             (data) => {
                 this.setState({
-                    clusterInfos: data
+                    clusterInfos: data,
                 });
             },
             null
         );
     }
 
-    componentWillMount() {
+    UNSAFE_componentWillMount() { // eslint-disable-line camelcase
         this.load();
 
         // reload the cluster status every 15 seconds
@@ -53,7 +52,7 @@ export default class ClusterTableContainer extends React.Component {
         }
 
         this.setState({
-            clusterInfos: null
+            clusterInfos: null,
         });
 
         this.load();

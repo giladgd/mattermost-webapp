@@ -33,6 +33,10 @@
         .icon__globe {
             top: 1px;
         }
+
+        .icon__archive {
+            top: 2px;
+        }
     }
 
     .sidebar-item__name {
@@ -92,16 +96,6 @@
                 position: relative;
                 vertical-align: middle;
                 z-index: 5;
-            }
-
-            .icon {
-                display: none;
-                margin-right: 15px;
-
-                svg {
-                    position: relative;
-                    top: 7px;
-                }
             }
 
             &:hover {
@@ -188,11 +182,17 @@
 
         li {
             > h4 {
+                align-items: end;
+                display: flex;
                 font-size: 1em;
                 font-weight: 600;
                 margin: 1.5em 0 .7em;
-                padding: 0 12px 0 17px;
+                padding: 0 12px 0 15px;
                 text-transform: uppercase;
+
+                span {
+                    flex: 1;
+                }
             }
 
             .divider {
@@ -207,24 +207,25 @@
                 line-height: 1.5;
                 outline: none;
                 overflow: hidden;
-                padding: 5px 0 5px 17px;
+                padding: 5px 0 5px 15px;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
 
-            > .sidebar-item {
+            .sidebar-item {
                 @include single-transition(none);
                 border-radius: 0;
                 line-height: 1.5;
                 outline: none;
                 overflow: hidden;
-                padding: 5px 0 5px 17px;
+                padding: 5px 0 5px 15px;
                 text-align: left;
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 width: 100%;
 
                 .icon {
+                    &.icon__archive,
                     &.icon__globe,
                     &.icon__lock {
                         @include opacity(.5);
@@ -269,9 +270,17 @@
                     font-weight: 600;
                 }
 
+                &.muted {
+                    opacity: 0.5;
+                }
+
             }
 
             &.active {
+                .muted {
+                    opacity: 1;
+                }
+
                 button,a {
                     &:before {
                         background: $black;
@@ -285,6 +294,7 @@
                 }
 
                 .icon {
+                    &.icon__archive,
                     &.icon__globe,
                     &.icon__lock {
                         @include opacity(.7);
@@ -383,4 +393,30 @@
     margin-left: 10px;
     margin-top: 5px;
     width: 25px;
+}
+
+/* context menu shown when right-clicking on a channel in the LHS when using the desktop app */
+.react-contextmenu--visible {
+    background: #f0f0f0;
+    border: 1px solid #C6C6C6;
+    border-radius: 5px;
+    color: black;
+    cursor: pointer;
+    padding: 2px 0;
+    z-index: 100;
+}
+
+.react-contextmenu-item {
+    margin: 1px 0;
+    padding: 0 22px;
+
+    &:hover {
+        background: #489DFE;
+        color: $white;
+    }
+
+    &:focus,
+    span {
+        outline: none;
+    }
 }

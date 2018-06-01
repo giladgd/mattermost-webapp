@@ -11,11 +11,6 @@
                 "required": true,
                 "desc": "Post to be displayed"
             },
-            "mentionKeys": {
-                "type": { "name": "array" },
-                "required": false,
-                "desc": "Array of strings representing words to be interpreted as mentions for the logged-in user"
-            },
             "compactDisplay": {
                 "type": { "name": "bool" },
                 "required": false,
@@ -29,5 +24,13 @@
                 "desc": "Set to true if the post is in the right-hand sidebar (thread, search results, etc.)"
             }
         }
+    },
+    "ChannelHeaderButton": {
+        "desc": "A component on the right side of the channel header, beside buttons such as the pinned posts button.",
+        "props": {}
+    },
+    "MobileChannelHeaderButton": {
+        "desc": "Same as ChannelHeaderButton, except shown in mobile view when the screen is less than 768 pixels wide.",
+        "props": {}
     }
 }

@@ -1,20 +1,17 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
+import {Posts} from 'mattermost-redux/constants';
 
-import store from 'stores/redux_store.jsx';
-
+import PostMarkdown from 'components/post_markdown';
 import * as PostUtils from 'utils/post_utils.jsx';
-import * as TextFormatting from 'utils/text_formatting.jsx';
 import * as Utils from 'utils/utils.jsx';
 
-import {Posts} from 'mattermost-redux/constants';   // eslint-disable-line import/order
-import {getChannelsNameMapInCurrentTeam} from 'mattermost-redux/selectors/entities/channels';   // eslint-disable-line import/order
-
-import {renderSystemMessage} from './system_message_helpers.jsx';
+// This must match the max-height defined in CSS for the collapsed content div
+const MAX_POST_HEIGHT = 600;
 
 export default class PostMessageView extends React.PureComponent {
     static propTypes = {
@@ -25,29 +22,9 @@ export default class PostMessageView extends React.PureComponent {
         post: PropTypes.object.isRequired,
 
         /*
-         * Object using emoji names as keys with custom emojis as the values
-         */
-        emojis: PropTypes.object.isRequired,
-
-        /*
-         * The team the post was made in
-         */
-        team: PropTypes.object.isRequired,
-
-        /*
          * Set to enable Markdown formatting
          */
         enableFormatting: PropTypes.bool,
-
-        /*
-         * An array of words that can be used to mention a user
-         */
-        mentionKeys: PropTypes.arrayOf(PropTypes.string),
-
-        /*
-         * The URL that the app is hosted on
-         */
-        siteUrl: PropTypes.string,
 
         /*
          * Options specific to text formatting
@@ -69,6 +46,16 @@ export default class PostMessageView extends React.PureComponent {
          */
         isRHS: PropTypes.bool,
 
+        /**
+         * Whether or not the RHS is visible
+         */
+        isRHSOpen: PropTypes.bool,
+
+        /**
+         * Whether or not the RHS is expanded
+         */
+        isRHSExpanded: PropTypes.bool,
+
         /*
          * Logged in user's theme
          */
@@ -78,18 +65,74 @@ export default class PostMessageView extends React.PureComponent {
          * Post type components from plugins
          */
         pluginPostTypes: PropTypes.object,
-
-        /**
-         * The logged in user
-         */
-        currentUser: PropTypes.object.isRequired
     };
 
     static defaultProps = {
         options: {},
-        mentionKeys: [],
         isRHS: false,
-        pluginPostTypes: {}
+        pluginPostTypes: {},
+    };
+
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            collapse: true,
+            hasOverflow: false,
+        };
+    }
+
+    componentDidMount() {
+        this.checkOverflow();
+
+        window.addEventListener('resize', this.handleResize);
+    }
+
+    componentWillUpdate(nextProps) {
+        if (this.props.post.id !== nextProps.post.id) {
+            this.setState({
+                collapse: true,
+            });
+        }
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.post !== prevProps.post ||
+            this.props.isRHSOpen !== prevProps.isRHSOpen ||
+            this.props.isRHSExpanded !== prevProps.isRHSExpanded) {
+            this.checkOverflow();
+        }
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('resize', this.handleResize);
+    }
+
+    handleResize = () => {
+        this.checkOverflow();
+    };
+
+    checkOverflow = () => {
+        const content = this.refs.content;
+
+        let hasOverflow = false;
+        if (content && content.scrollHeight > MAX_POST_HEIGHT) {
+            hasOverflow = true;
+        }
+
+        if (hasOverflow !== this.state.hasOverflow) {
+            this.setState({
+                hasOverflow,
+            });
+        }
+    };
+
+    toggleCollapse = () => {
+        this.setState((state) => {
+            return {
+                collapse: !state.collapse,
+            };
+        });
     };
 
     renderDeletedPost() {
@@ -122,14 +165,12 @@ export default class PostMessageView extends React.PureComponent {
         const {
             post,
             enableFormatting,
+            options,
             pluginPostTypes,
             compactDisplay,
             isRHS,
             theme,
-            emojis,
-            siteUrl,
-            team,
-            lastPostCount
+            lastPostCount,
         } = this.props;
 
         if (post.state === Posts.POST_DELETED) {
@@ -147,29 +188,12 @@ export default class PostMessageView extends React.PureComponent {
                 return (
                     <PluginComponent
                         post={post}
-                        mentionKeys={this.props.mentionKeys}
                         compactDisplay={compactDisplay}
                         isRHS={isRHS}
                         theme={theme}
                     />
                 );
             }
-        }
-
-        const mentionKeys = [...this.props.mentionKeys, this.props.currentUser.username];
-
-        const options = Object.assign({}, this.props.options, {
-            emojis,
-            siteURL: siteUrl,
-            mentionKeys,
-            atMentions: true,
-            channelNamesMap: getChannelsNameMapInCurrentTeam(store.getState()),
-            team
-        });
-
-        const renderedSystemMessage = renderSystemMessage(post, options);
-        if (renderedSystemMessage) {
-            return <div>{renderedSystemMessage}</div>;
         }
 
         let postId = null;
@@ -183,19 +207,64 @@ export default class PostMessageView extends React.PureComponent {
             const visibleMessage = Utils.localizeMessage('post_info.message.visible.compact', ' (Only visible to you)');
             message = message.concat(visibleMessage);
         }
-        const htmlFormattedText = TextFormatting.formatText(message, options);
-        const postMessageComponent = PostUtils.postMessageHtmlToComponent(htmlFormattedText, isRHS);
+
+        let className = 'post-message';
+        if (this.state.collapse) {
+            className += ' post-message--collapsed';
+        } else {
+            className += ' post-message--expanded';
+        }
+
+        let overflow = null;
+        if (this.state.hasOverflow) {
+            let icon = 'fa fa-angle-up';
+            let text = 'Show Less';
+            if (this.state.collapse) {
+                icon = 'fa fa-angle-down';
+                text = 'Show More';
+            }
+
+            overflow = (
+                <div className='post-collapse'>
+                    <div className='post-collapse__gradient'/>
+                    <div className='post-collapse__show-more'>
+                        <div className='post-collapse__show-more-line'/>
+                        <button
+                            className='post-collapse__show-more-button'
+                            onClick={this.toggleCollapse}
+                        >
+                            <span className={icon}/>
+                            {text}
+                        </button>
+                        <div className='post-collapse__show-more-line'/>
+                    </div>
+                </div>
+            );
+
+            className += ' post-message--overflow';
+        }
 
         return (
-            <div>
-                <span
-                    id={postId}
-                    className='post-message__text'
-                    onClick={Utils.handleFormattedTextClick}
+            <div className={className}>
+                <div
+                    className='post-message__text-container'
+                    ref='content'
                 >
-                    {postMessageComponent}
-                </span>
-                {this.renderEditedIndicator()}
+                    <div
+                        id={postId}
+                        className='post-message__text'
+                        onClick={Utils.handleFormattedTextClick}
+                    >
+                        <PostMarkdown
+                            message={message}
+                            isRHS={isRHS}
+                            options={options}
+                            post={post}
+                        />
+                    </div>
+                    {this.renderEditedIndicator()}
+                </div>
+                {overflow}
             </div>
         );
     }

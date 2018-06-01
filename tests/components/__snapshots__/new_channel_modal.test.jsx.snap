@@ -24,16 +24,33 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
         "remove": [Function],
       }
     }
-    onHide={[Function]}
+    onHide={[MockFunction]}
     renderBackdrop={[Function]}
     restoreFocus={true}
     show={false}
   >
     <ModalHeader
       bsClass="modal-header"
-      closeButton={true}
+      closeButton={false}
       closeLabel="Close"
     >
+      <button
+        className="close"
+        onClick={[MockFunction]}
+        tabIndex="5"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+        >
+          ×
+        </span>
+        <span
+          className="sr-only"
+        >
+          Close
+        </span>
+      </button>
       <ModalTitle
         bsClass="modal-title"
         componentClass="h4"
@@ -62,16 +79,26 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
               id="channel_modal.publicChannel2"
               values={Object {}}
             />
-            <button
-              className="style--none color--link"
-              onClick={[Function]}
+            <Connect(TeamPermissionGate)
+              permissions={
+                Array [
+                  "create_private_channel",
+                ]
+              }
+              teamId="test_team_id"
             >
-              <FormattedMessage
-                defaultMessage="Create a private channel"
-                id="channel_modal.privateGroup2"
-                values={Object {}}
-              />
-            </button>
+              <button
+                className="style--none color--link"
+                onClick={[MockFunction]}
+                tabIndex="6"
+              >
+                <FormattedMessage
+                  defaultMessage="Create a private channel"
+                  id="channel_modal.privateGroup2"
+                  values={Object {}}
+                />
+              </button>
+            </Connect(TeamPermissionGate)>
           </div>
         </div>
         <div
@@ -95,6 +122,7 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
               id="newPublicChannelName"
               maxLength={22}
               onChange={[Function]}
+              onKeyDown={[Function]}
               placeholder="E.g.: \\"Bugs\\", \\"Marketing\\", \\"客户支持\\""
               tabIndex="1"
               type="text"
@@ -107,6 +135,7 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
               <button
                 className="color--link style--none"
                 onClick={[Function]}
+                tabIndex="7"
               >
                 <FormattedMessage
                   defaultMessage="Edit"
@@ -202,7 +231,7 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
               onChange={[Function]}
               placeholder="E.g.: \\"[Link Title](http://example.com)\\""
               rows="4"
-              tabIndex="2"
+              tabIndex="3"
               value=""
             />
             <p
@@ -223,7 +252,9 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
       >
         <button
           className="btn btn-default"
-          onClick={[Function]}
+          onBlur={[Function]}
+          onClick={[MockFunction]}
+          tabIndex="8"
           type="button"
         >
           <FormattedMessage
@@ -235,7 +266,7 @@ exports[`components/NewChannelModal should match snapshot, modal not showing 1`]
         <button
           className="btn btn-primary"
           onClick={[Function]}
-          tabIndex="3"
+          tabIndex="4"
           type="submit"
         >
           <FormattedMessage
@@ -274,16 +305,33 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
         "remove": [Function],
       }
     }
-    onHide={[Function]}
+    onHide={[MockFunction]}
     renderBackdrop={[Function]}
     restoreFocus={true}
     show={true}
   >
     <ModalHeader
       bsClass="modal-header"
-      closeButton={true}
+      closeButton={false}
       closeLabel="Close"
     >
+      <button
+        className="close"
+        onClick={[MockFunction]}
+        tabIndex="5"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+        >
+          ×
+        </span>
+        <span
+          className="sr-only"
+        >
+          Close
+        </span>
+      </button>
       <ModalTitle
         bsClass="modal-title"
         componentClass="h4"
@@ -312,16 +360,26 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
               id="channel_modal.publicChannel2"
               values={Object {}}
             />
-            <button
-              className="style--none color--link"
-              onClick={[Function]}
+            <Connect(TeamPermissionGate)
+              permissions={
+                Array [
+                  "create_private_channel",
+                ]
+              }
+              teamId="test_team_id"
             >
-              <FormattedMessage
-                defaultMessage="Create a private channel"
-                id="channel_modal.privateGroup2"
-                values={Object {}}
-              />
-            </button>
+              <button
+                className="style--none color--link"
+                onClick={[MockFunction]}
+                tabIndex="6"
+              >
+                <FormattedMessage
+                  defaultMessage="Create a private channel"
+                  id="channel_modal.privateGroup2"
+                  values={Object {}}
+                />
+              </button>
+            </Connect(TeamPermissionGate)>
           </div>
         </div>
         <div
@@ -345,6 +403,7 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
               id="newPublicChannelName"
               maxLength={22}
               onChange={[Function]}
+              onKeyDown={[Function]}
               placeholder="E.g.: \\"Bugs\\", \\"Marketing\\", \\"客户支持\\""
               tabIndex="1"
               type="text"
@@ -357,6 +416,7 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
               <button
                 className="color--link style--none"
                 onClick={[Function]}
+                tabIndex="7"
               >
                 <FormattedMessage
                   defaultMessage="Edit"
@@ -452,7 +512,7 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
               onChange={[Function]}
               placeholder="E.g.: \\"[Link Title](http://example.com)\\""
               rows="4"
-              tabIndex="2"
+              tabIndex="3"
               value=""
             />
             <p
@@ -473,7 +533,9 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
       >
         <button
           className="btn btn-default"
-          onClick={[Function]}
+          onBlur={[Function]}
+          onClick={[MockFunction]}
+          tabIndex="8"
           type="button"
         >
           <FormattedMessage
@@ -485,7 +547,7 @@ exports[`components/NewChannelModal should match snapshot, modal showing 1`] = `
         <button
           className="btn btn-primary"
           onClick={[Function]}
-          tabIndex="3"
+          tabIndex="4"
           type="submit"
         >
           <FormattedMessage
@@ -524,16 +586,33 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
         "remove": [Function],
       }
     }
-    onHide={[Function]}
+    onHide={[MockFunction]}
     renderBackdrop={[Function]}
     restoreFocus={true}
     show={true}
   >
     <ModalHeader
       bsClass="modal-header"
-      closeButton={true}
+      closeButton={false}
       closeLabel="Close"
     >
+      <button
+        className="close"
+        onClick={[MockFunction]}
+        tabIndex="5"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+        >
+          ×
+        </span>
+        <span
+          className="sr-only"
+        >
+          Close
+        </span>
+      </button>
       <ModalTitle
         bsClass="modal-title"
         componentClass="h4"
@@ -562,16 +641,26 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
               id="channel_modal.publicChannel2"
               values={Object {}}
             />
-            <button
-              className="style--none color--link"
-              onClick={[Function]}
+            <Connect(TeamPermissionGate)
+              permissions={
+                Array [
+                  "create_private_channel",
+                ]
+              }
+              teamId="test_team_id"
             >
-              <FormattedMessage
-                defaultMessage="Create a private channel"
-                id="channel_modal.privateGroup2"
-                values={Object {}}
-              />
-            </button>
+              <button
+                className="style--none color--link"
+                onClick={[MockFunction]}
+                tabIndex="6"
+              >
+                <FormattedMessage
+                  defaultMessage="Create a private channel"
+                  id="channel_modal.privateGroup2"
+                  values={Object {}}
+                />
+              </button>
+            </Connect(TeamPermissionGate)>
           </div>
         </div>
         <div
@@ -595,6 +684,7 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
               id="newPublicChannelName"
               maxLength={22}
               onChange={[Function]}
+              onKeyDown={[Function]}
               placeholder="E.g.: \\"Bugs\\", \\"Marketing\\", \\"客户支持\\""
               tabIndex="1"
               type="text"
@@ -616,6 +706,7 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
               <button
                 className="color--link style--none"
                 onClick={[Function]}
+                tabIndex="7"
               >
                 <FormattedMessage
                   defaultMessage="Edit"
@@ -711,7 +802,7 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
               onChange={[Function]}
               placeholder="E.g.: \\"[Link Title](http://example.com)\\""
               rows="4"
-              tabIndex="2"
+              tabIndex="3"
               value=""
             />
             <p
@@ -732,7 +823,9 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
       >
         <button
           className="btn btn-default"
-          onClick={[Function]}
+          onBlur={[Function]}
+          onClick={[MockFunction]}
+          tabIndex="8"
           type="button"
         >
           <FormattedMessage
@@ -744,7 +837,7 @@ exports[`components/NewChannelModal should match snapshot, on displayNameError 1
         <button
           className="btn btn-primary"
           onClick={[Function]}
-          tabIndex="3"
+          tabIndex="4"
           type="submit"
         >
           <FormattedMessage
@@ -783,16 +876,33 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
         "remove": [Function],
       }
     }
-    onHide={[Function]}
+    onHide={[MockFunction]}
     renderBackdrop={[Function]}
     restoreFocus={true}
     show={true}
   >
     <ModalHeader
       bsClass="modal-header"
-      closeButton={true}
+      closeButton={false}
       closeLabel="Close"
     >
+      <button
+        className="close"
+        onClick={[MockFunction]}
+        tabIndex="5"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+        >
+          ×
+        </span>
+        <span
+          className="sr-only"
+        >
+          Close
+        </span>
+      </button>
       <ModalTitle
         bsClass="modal-title"
         componentClass="h4"
@@ -821,16 +931,26 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
               id="channel_modal.publicChannel2"
               values={Object {}}
             />
-            <button
-              className="style--none color--link"
-              onClick={[Function]}
+            <Connect(TeamPermissionGate)
+              permissions={
+                Array [
+                  "create_private_channel",
+                ]
+              }
+              teamId="test_team_id"
             >
-              <FormattedMessage
-                defaultMessage="Create a private channel"
-                id="channel_modal.privateGroup2"
-                values={Object {}}
-              />
-            </button>
+              <button
+                className="style--none color--link"
+                onClick={[MockFunction]}
+                tabIndex="6"
+              >
+                <FormattedMessage
+                  defaultMessage="Create a private channel"
+                  id="channel_modal.privateGroup2"
+                  values={Object {}}
+                />
+              </button>
+            </Connect(TeamPermissionGate)>
           </div>
         </div>
         <div
@@ -854,6 +974,7 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
               id="newPublicChannelName"
               maxLength={22}
               onChange={[Function]}
+              onKeyDown={[Function]}
               placeholder="E.g.: \\"Bugs\\", \\"Marketing\\", \\"客户支持\\""
               tabIndex="1"
               type="text"
@@ -866,6 +987,7 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
               <button
                 className="color--link style--none"
                 onClick={[Function]}
+                tabIndex="7"
               >
                 <FormattedMessage
                   defaultMessage="Edit"
@@ -961,7 +1083,7 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
               onChange={[Function]}
               placeholder="E.g.: \\"[Link Title](http://example.com)\\""
               rows="4"
-              tabIndex="2"
+              tabIndex="3"
               value=""
             />
             <p
@@ -995,7 +1117,9 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
       >
         <button
           className="btn btn-default"
-          onClick={[Function]}
+          onBlur={[Function]}
+          onClick={[MockFunction]}
+          tabIndex="8"
           type="button"
         >
           <FormattedMessage
@@ -1007,7 +1131,7 @@ exports[`components/NewChannelModal should match snapshot, on serverError 1`] = 
         <button
           className="btn btn-primary"
           onClick={[Function]}
-          tabIndex="3"
+          tabIndex="4"
           type="submit"
         >
           <FormattedMessage
@@ -1046,16 +1170,33 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
         "remove": [Function],
       }
     }
-    onHide={[Function]}
+    onHide={[MockFunction]}
     renderBackdrop={[Function]}
     restoreFocus={true}
     show={true}
   >
     <ModalHeader
       bsClass="modal-header"
-      closeButton={true}
+      closeButton={false}
       closeLabel="Close"
     >
+      <button
+        className="close"
+        onClick={[MockFunction]}
+        tabIndex="5"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+        >
+          ×
+        </span>
+        <span
+          className="sr-only"
+        >
+          Close
+        </span>
+      </button>
       <ModalTitle
         bsClass="modal-title"
         componentClass="h4"
@@ -1084,16 +1225,25 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
               id="channel_modal.privateGroup1"
               values={Object {}}
             />
-            <button
-              className="style--none color--link"
-              onClick={[Function]}
+            <Connect(TeamPermissionGate)
+              permissions={
+                Array [
+                  "create_public_channel",
+                ]
+              }
+              teamId="test_team_id"
             >
-              <FormattedMessage
-                defaultMessage="Create a public channel"
-                id="channel_modal.publicChannel1"
-                values={Object {}}
-              />
-            </button>
+              <button
+                className="style--none color--link"
+                onClick={[MockFunction]}
+              >
+                <FormattedMessage
+                  defaultMessage="Create a public channel"
+                  id="channel_modal.publicChannel1"
+                  values={Object {}}
+                />
+              </button>
+            </Connect(TeamPermissionGate)>
           </div>
         </div>
         <div
@@ -1117,6 +1267,7 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
               id="newPrivateChannelName"
               maxLength={22}
               onChange={[Function]}
+              onKeyDown={[Function]}
               placeholder="E.g.: \\"Bugs\\", \\"Marketing\\", \\"客户支持\\""
               tabIndex="1"
               type="text"
@@ -1129,6 +1280,7 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
               <button
                 className="color--link style--none"
                 onClick={[Function]}
+                tabIndex="7"
               >
                 <FormattedMessage
                   defaultMessage="Edit"
@@ -1224,7 +1376,7 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
               onChange={[Function]}
               placeholder="E.g.: \\"[Link Title](http://example.com)\\""
               rows="4"
-              tabIndex="2"
+              tabIndex="3"
               value="some header"
             />
             <p
@@ -1245,7 +1397,9 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
       >
         <button
           className="btn btn-default"
-          onClick={[Function]}
+          onBlur={[Function]}
+          onClick={[MockFunction]}
+          tabIndex="8"
           type="button"
         >
           <FormattedMessage
@@ -1257,7 +1411,7 @@ exports[`components/NewChannelModal should match snapshot, private channel fille
         <button
           className="btn btn-primary"
           onClick={[Function]}
-          tabIndex="3"
+          tabIndex="4"
           type="submit"
         >
           <FormattedMessage

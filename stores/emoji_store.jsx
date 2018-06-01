@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import EventEmitter from 'events';
 
@@ -8,7 +8,6 @@ import {getCustomEmojisByName} from 'mattermost-redux/selectors/entities/emojis'
 
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import store from 'stores/redux_store.jsx';
-
 import Constants from 'utils/constants.jsx';
 import * as Emoji from 'utils/emoji.jsx';
 
@@ -65,7 +64,7 @@ export class EmojiMap {
                 }
 
                 return {done: true};
-            }
+            },
         };
     }
 }
@@ -84,13 +83,13 @@ class EmojiStore extends EventEmitter {
 
         store.subscribe(() => {
             const newEntities = store.getState().entities.emojis.customEmoji;
+            const entities = this.entities;
+            this.entities = newEntities;
 
-            if (newEntities !== this.entities) {
+            if (newEntities !== entities) {
                 this.map = new EmojiMap(getCustomEmojisByName(store.getState()));
                 this.emitChange();
             }
-
-            this.entities = newEntities;
         });
     }
 

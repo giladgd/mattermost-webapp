@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -12,7 +12,7 @@ export default class ModalToggleButton extends React.Component {
         this.hide = this.hide.bind(this);
 
         this.state = {
-            show: false
+            show: false,
         };
     }
 
@@ -50,7 +50,7 @@ export default class ModalToggleButton extends React.Component {
                     if (dialogProps.onHide) {
                         dialogProps.onHide();
                     }
-                }
+                },
             }));
         }
 
@@ -74,10 +74,10 @@ ModalToggleButton.propTypes = {
     dialogType: PropTypes.func.isRequired,
     dialogProps: PropTypes.object,
     onClick: PropTypes.func,
-    className: PropTypes.string
+    className: PropTypes.string,
 };
 
 ModalToggleButton.defaultProps = {
     dialogProps: {},
-    className: ''
+    className: '',
 };

@@ -1,12 +1,8 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
-import {Provider} from 'react-redux';
-
-import store from 'stores/redux_store.jsx';
-
-import {mountWithIntl} from 'tests/helpers/intl-test-helper';
+import {shallow, mount} from 'enzyme';
 
 import PostMessageView from 'components/post_view/post_message_view/post_message_view.jsx';
 
@@ -17,9 +13,9 @@ class PostTypePlugin extends React.PureComponent {
 }
 
 describe('plugins/PostMessageView', () => {
-    const post = {type: 'testtype'};
+    const post = {type: 'testtype', message: 'this is some text'};
     const pluginPostTypes = {
-        testtype: {component: PostTypePlugin}
+        testtype: {component: PostTypePlugin},
     };
 
     const requiredProps = {
@@ -29,14 +25,12 @@ describe('plugins/PostMessageView', () => {
         team: {name: 'team_name'},
         emojis: {name: 'smile'},
         theme: {id: 'theme_id'},
-        enableFormatting: true
+        enableFormatting: true,
     };
 
     test('should match snapshot with extended post type', () => {
-        const wrapper = mountWithIntl(
-            <Provider store={store}>
-                <PostMessageView {...requiredProps}/>
-            </Provider>
+        const wrapper = mount(
+            <PostMessageView {...requiredProps}/>
         );
 
         expect(wrapper).toMatchSnapshot();
@@ -45,10 +39,8 @@ describe('plugins/PostMessageView', () => {
 
     test('should match snapshot with no extended post type', () => {
         const props = {...requiredProps, pluginPostTypes: {}};
-        const wrapper = mountWithIntl(
-            <Provider store={store}>
-                <PostMessageView {...props}/>
-            </Provider>
+        const wrapper = shallow(
+            <PostMessageView {...props}/>
         );
 
         expect(wrapper).toMatchSnapshot();

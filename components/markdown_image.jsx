@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -14,7 +14,7 @@ export default class MarkdownImage extends React.PureComponent {
         /*
          * The href of the image to be loaded
          */
-        href: PropTypes.string
+        href: PropTypes.string,
     }
 
     constructor(props) {

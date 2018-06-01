@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -18,6 +18,16 @@ export default function DotMenuEdit(props) {
         editId = props.idPrefix;
     }
 
+    function handleOnClick() {
+        props.actions.setEditingPost(
+            props.post.id,
+            props.commentCount,
+            props.idPrefix.indexOf(Constants.CENTER) === 0 ? 'post_textbox' : 'reply_textbox',
+            props.idPrefix.indexOf(Constants.CENTER) === 0 ? props.type : Utils.localizeMessage('rhs_comment.comment', 'Comment'),
+            props.isRHS
+        );
+    }
+
     return (
         <li
             id={Utils.createSafeId(editId)}
@@ -26,12 +36,7 @@ export default function DotMenuEdit(props) {
         >
             <button
                 className='style--none'
-                onClick={() => props.actions.setEditingPost(
-                    props.post.id,
-                    props.commentsCount,
-                    props.idPrefix.indexOf(Constants.CENTER) === 0 ? 'post_textbox' : 'reply_textbox',
-                    props.idPrefix.indexOf(Constants.CENTER) === 0 ? props.type : Utils.localizeMessage('rhs_comment.comment', 'Comment')
-                )}
+                onClick={handleOnClick}
             >
                 <FormattedMessage
                     id='post_info.edit'
@@ -44,19 +49,20 @@ export default function DotMenuEdit(props) {
 
 DotMenuEdit.propTypes = {
     idPrefix: PropTypes.string.isRequired,
+    isRHS: PropTypes.bool,
     idCount: PropTypes.number,
     post: PropTypes.object,
     type: PropTypes.string,
-    commentsCount: PropTypes.number,
+    commentCount: PropTypes.number,
     actions: PropTypes.shape({
 
         /*
          * Function set the editing post
          */
-        setEditingPost: PropTypes.func.isRequired
-    }).isRequired
+        setEditingPost: PropTypes.func.isRequired,
+    }).isRequired,
 };
 
 DotMenuEdit.defaultProps = {
-    idCount: -1
+    idCount: -1,
 };

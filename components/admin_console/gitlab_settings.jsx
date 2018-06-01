@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
@@ -39,7 +39,7 @@ export default class GitLabSettings extends AdminSettings {
             gitLabUrl: config.GitLabSettings.UserApiEndpoint.replace('/api/v4/user', ''),
             userApiEndpoint: config.GitLabSettings.UserApiEndpoint,
             authEndpoint: config.GitLabSettings.AuthEndpoint,
-            tokenEndpoint: config.GitLabSettings.TokenEndpoint
+            tokenEndpoint: config.GitLabSettings.TokenEndpoint,
         };
     }
 
@@ -54,9 +54,17 @@ export default class GitLabSettings extends AdminSettings {
             gitLabUrl: value,
             userApiEndpoint: trimmedValue + '/api/v4/user',
             authEndpoint: trimmedValue + '/oauth/authorize',
-            tokenEndpoint: trimmedValue + '/oauth/token'
+            tokenEndpoint: trimmedValue + '/oauth/token',
         });
     }
+
+    isGitLabURLSetByEnv = () => {
+        // Assume that if one of these has been set using an environment variable,
+        // all of them have been set that way
+        return this.isSetByEnv('GitLabSettings.AuthEndpoint') ||
+            this.isSetByEnv('GitLabSettings.TokenEndpoint') ||
+            this.isSetByEnv('GitLabSettings.UserApiEndpoint');
+    };
 
     renderTitle() {
         return (
@@ -93,6 +101,7 @@ export default class GitLabSettings extends AdminSettings {
                     }
                     value={this.state.enable}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('GitLabSettings.Enable')}
                 />
                 <TextSetting
                     id='id'
@@ -102,7 +111,7 @@ export default class GitLabSettings extends AdminSettings {
                             defaultMessage='Application ID:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.gitlab.clientIdExample', 'Ex "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
+                    placeholder={Utils.localizeMessage('admin.gitlab.clientIdExample', 'E.g.: "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
                     helpText={
                         <FormattedMessage
                             id='admin.gitlab.clientIdDescription'
@@ -112,6 +121,7 @@ export default class GitLabSettings extends AdminSettings {
                     value={this.state.id}
                     onChange={this.handleChange}
                     disabled={!this.state.enable}
+                    setByEnv={this.isSetByEnv('GitLabSettings.Id')}
                 />
                 <TextSetting
                     id='secret'
@@ -121,7 +131,7 @@ export default class GitLabSettings extends AdminSettings {
                             defaultMessage='Application Secret Key:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.gitlab.clientSecretExample', 'Ex "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
+                    placeholder={Utils.localizeMessage('admin.gitlab.clientSecretExample', 'E.g.: "jcuS8PuvcpGhpgHhlcpT1Mx42pnqMxQY"')}
                     helpText={
                         <FormattedMessage
                             id='admin.gitlab.clientSecretDescription'
@@ -131,6 +141,7 @@ export default class GitLabSettings extends AdminSettings {
                     value={this.state.secret}
                     onChange={this.handleChange}
                     disabled={!this.state.enable}
+                    setByEnv={this.isSetByEnv('GitLabSettings.Secret')}
                 />
                 <TextSetting
                     id='gitlabUrl'
@@ -143,13 +154,14 @@ export default class GitLabSettings extends AdminSettings {
                     placeholder={Utils.localizeMessage('admin.gitlab.siteUrlExample', 'E.g.: https://')}
                     helpText={
                         <FormattedMessage
-                            id='admin.gitab.siteUrlDescription'
+                            id='admin.gitlab.siteUrlDescription'
                             defaultMessage='Enter the URL of your GitLab instance, e.g. https://example.com:3000. If your GitLab instance is not set up with SSL, start the URL with http:// instead of https://.'
                         />
                     }
                     value={this.state.gitLabUrl}
                     onChange={this.updateGitLabUrl}
                     disabled={!this.state.enable}
+                    setByEnv={this.isGitLabURLSetByEnv()}
                 />
                 <TextSetting
                     id='userApiEndpoint'
@@ -162,6 +174,7 @@ export default class GitLabSettings extends AdminSettings {
                     placeholder={''}
                     value={this.state.userApiEndpoint}
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='authEndpoint'
@@ -174,6 +187,7 @@ export default class GitLabSettings extends AdminSettings {
                     placeholder={''}
                     value={this.state.authEndpoint}
                     disabled={true}
+                    setByEnv={false}
                 />
                 <TextSetting
                     id='tokenEndpoint'
@@ -186,6 +200,7 @@ export default class GitLabSettings extends AdminSettings {
                     placeholder={''}
                     value={this.state.tokenEndpoint}
                     disabled={true}
+                    setByEnv={false}
                 />
             </SettingsGroup>
         );

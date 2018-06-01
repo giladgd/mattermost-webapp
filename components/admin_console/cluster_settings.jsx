@@ -1,9 +1,8 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {FormattedHTMLMessage, FormattedMessage} from 'react-intl';
-
 import {Client4} from 'mattermost-redux/client';
 
 import * as Utils from 'utils/utils.jsx';
@@ -47,7 +46,7 @@ export default class ClusterSettings extends AdminSettings {
             ReadOnlyConfig: settings.ReadOnlyConfig,
             GossipPort: settings.GossipPort,
             StreamingPort: settings.StreamingPort,
-            showWarning: false
+            showWarning: false,
         };
     }
 
@@ -62,14 +61,14 @@ export default class ClusterSettings extends AdminSettings {
 
     overrideHandleChange(id, value) {
         this.setState({
-            showWarning: true
+            showWarning: true,
         });
 
         this.handleChange(id, value);
     }
 
     renderSettings() {
-        const licenseEnabled = global.window.mm_license.IsLicensed === 'true' && global.window.mm_license.Cluster === 'true';
+        const licenseEnabled = this.props.license.IsLicensed === 'true' && this.props.license.Cluster === 'true';
         if (!licenseEnabled) {
             return null;
         }
@@ -79,7 +78,7 @@ export default class ClusterSettings extends AdminSettings {
         if (Client4.clusterId) {
             configLoadedFromCluster = (
                 <div
-                    style={{marginBottom: '10px'}}
+                    style={style.configLoadedFromCluster}
                     className='alert alert-warning'
                 >
                     <i className='fa fa-warning'/>
@@ -87,7 +86,7 @@ export default class ClusterSettings extends AdminSettings {
                         id='admin.cluster.loadedFrom'
                         defaultMessage='This configuration file was loaded from Node ID {clusterId}. Please see the Troubleshooting Guide in our <a href="http://docs.mattermost.com/deployment/cluster.html" target="_blank">documentation</a> if you are accessing the System Console through a load balancer and experiencing issues.'
                         values={{
-                            clusterId: Client4.clusterId
+                            clusterId: Client4.clusterId,
                         }}
                     />
                 </div>
@@ -98,7 +97,7 @@ export default class ClusterSettings extends AdminSettings {
         if (this.state.showWarning) {
             warning = (
                 <div
-                    style={{marginBottom: '10px'}}
+                    style={style.warning}
                     className='alert alert-warning'
                 >
                     <i className='fa fa-warning'/>
@@ -142,6 +141,7 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.Enable}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.Enable')}
                 />
                 <TextSetting
                     id='ClusterName'
@@ -151,7 +151,7 @@ export default class ClusterSettings extends AdminSettings {
                             defaultMessage='Cluster Name:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.cluster.ClusterNameEx', 'Ex "Production" or "Staging"')}
+                    placeholder={Utils.localizeMessage('admin.cluster.ClusterNameEx', 'E.g.: "Production" or "Staging"')}
                     helpText={
                         <FormattedMessage
                             id='admin.cluster.ClusterNameDesc'
@@ -160,6 +160,7 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.ClusterName}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.ClusterName')}
                 />
                 <TextSetting
                     id='OverrideHostname'
@@ -169,7 +170,7 @@ export default class ClusterSettings extends AdminSettings {
                             defaultMessage='Override Hostname:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.cluster.OverrideHostnameEx', 'Ex "app-server-01"')}
+                    placeholder={Utils.localizeMessage('admin.cluster.OverrideHostnameEx', 'E.g.: "app-server-01"')}
                     helpText={
                         <FormattedMessage
                             id='admin.cluster.OverrideHostnameDesc'
@@ -178,6 +179,7 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.OverrideHostname}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.OverrideHostname')}
                 />
                 <BooleanSetting
                     id='UseIpAddress'
@@ -195,6 +197,7 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.UseIpAddress}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.UseIpAddress')}
                 />
                 <BooleanSetting
                     id='UseExperimentalGossip'
@@ -212,6 +215,7 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.UseExperimentalGossip}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.UseExperimentalGossip')}
                 />
                 <BooleanSetting
                     id='ReadOnlyConfig'
@@ -229,6 +233,7 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.ReadOnlyConfig}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.ReadOnlyConfig')}
                 />
                 <TextSetting
                     id='GossipPort'
@@ -238,15 +243,16 @@ export default class ClusterSettings extends AdminSettings {
                             defaultMessage='Gossip Port:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.cluster.GossipPortEx', 'Ex "8074"')}
+                    placeholder={Utils.localizeMessage('admin.cluster.GossipPortEx', 'E.g.: "8074"')}
                     helpText={
                         <FormattedMessage
                             id='admin.cluster.GossipPortDesc'
-                            defaultMessage='The port used for the gossip protocol.  Both UDP and TCP should abe allowed on this port.'
+                            defaultMessage='The port used for the gossip protocol.  Both UDP and TCP should be allowed on this port.'
                         />
                     }
                     value={this.state.GossipPort}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.GossipPort')}
                 />
                 <TextSetting
                     id='StreamingPort'
@@ -256,7 +262,7 @@ export default class ClusterSettings extends AdminSettings {
                             defaultMessage='Streaming Port:'
                         />
                     }
-                    placeholder={Utils.localizeMessage('admin.cluster.StreamingPortEx', 'Ex "8075"')}
+                    placeholder={Utils.localizeMessage('admin.cluster.StreamingPortEx', 'E.g.: "8075"')}
                     helpText={
                         <FormattedMessage
                             id='admin.cluster.StreamingPortDesc'
@@ -265,8 +271,14 @@ export default class ClusterSettings extends AdminSettings {
                     }
                     value={this.state.StreamingPort}
                     onChange={this.overrideHandleChange}
+                    setByEnv={this.isSetByEnv('ClusterSettings.StreamingPort')}
                 />
             </SettingsGroup>
         );
     }
 }
+
+const style = {
+    configLoadedFromCluster: {marginBottom: 10},
+    warning: {marginBottom: 10},
+};

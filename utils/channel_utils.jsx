@@ -1,11 +1,8 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
-import {getConfig} from 'mattermost-redux/selectors/entities/general';
-import {getLastPostPerChannel} from 'mattermost-redux/selectors/entities/posts';
-import {getMyPreferences} from 'mattermost-redux/selectors/entities/preferences';
-import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
+import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
+import Permissions from 'mattermost-redux/constants/permissions';
 import * as ChannelUtilsRedux from 'mattermost-redux/utils/channel_utils';
 
 import ChannelStore from 'stores/channel_store.jsx';
@@ -14,8 +11,8 @@ import PreferenceStore from 'stores/preference_store.jsx';
 import store from 'stores/redux_store.jsx';
 import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import Constants, {Preferences} from 'utils/constants.jsx';
+import * as Utils from 'utils/utils.jsx';
 
 export function isFavoriteChannel(channel) {
     return PreferenceStore.getBool(Preferences.CATEGORY_FAVORITE_CHANNEL, channel.id);
@@ -23,16 +20,6 @@ export function isFavoriteChannel(channel) {
 
 export function isFavoriteChannelId(channelId) {
     return PreferenceStore.getBool(Preferences.CATEGORY_FAVORITE_CHANNEL, channelId);
-}
-
-// TODO This should use the version from mattermost-redux
-export function isOpenChannel(channel) {
-    return channel.type === Constants.OPEN_CHANNEL;
-}
-
-// TODO This should use the version from mattermost-redux
-export function isPrivateChannel(channel) {
-    return channel.type === Constants.PRIVATE_CHANNEL;
 }
 
 export function sortChannelsByDisplayName(a, b) {
@@ -65,110 +52,27 @@ export function getChannelDisplayName(channel) {
     return channel.display_name;
 }
 
-export function showCreateOption(channelType, isTeamAdmin, isSystemAdmin) {
-    if (global.window.mm_license.IsLicensed !== 'true') {
-        return true;
-    }
-
-    if (channelType === Constants.OPEN_CHANNEL) {
-        if (global.window.mm_config.RestrictPublicChannelCreation === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        } else if (global.window.mm_config.RestrictPublicChannelCreation === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-    } else if (channelType === Constants.PRIVATE_CHANNEL) {
-        if (global.window.mm_config.RestrictPrivateChannelCreation === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        } else if (global.window.mm_config.RestrictPrivateChannelCreation === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-export function showManagementOptions(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin) {
-    if (global.window.mm_license.IsLicensed !== 'true') {
-        // policies are only enforced in enterprise editions
-        return true;
-    }
-
-    if (channel.type === Constants.OPEN_CHANNEL) {
-        if (global.window.mm_config.RestrictPublicChannelManagement === Constants.PERMISSIONS_CHANNEL_ADMIN && !(isChannelAdmin || isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPublicChannelManagement === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPublicChannelManagement === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        }
-    } else if (channel.type === Constants.PRIVATE_CHANNEL) {
-        if (global.window.mm_config.RestrictPrivateChannelManagement === Constants.PERMISSIONS_CHANNEL_ADMIN && !(isChannelAdmin || isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPrivateChannelManagement === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPrivateChannelManagement === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-export function showDeleteOptionForCurrentUser(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin) {
-    if (global.window.mm_license.IsLicensed !== 'true') {
-        // policies are only enforced in enterprise editions
-        return true;
-    }
-
-    if (ChannelUtilsRedux.isDefault(channel)) {
-        // can't delete default channels, no matter who you are
-        return false;
-    }
-
-    if (channel.type === Constants.OPEN_CHANNEL) {
-        if (global.window.mm_config.RestrictPublicChannelDeletion === Constants.PERMISSIONS_CHANNEL_ADMIN && !(isChannelAdmin || isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPublicChannelDeletion === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPublicChannelDeletion === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        }
-    } else if (channel.type === Constants.PRIVATE_CHANNEL) {
-        if (global.window.mm_config.RestrictPrivateChannelDeletion === Constants.PERMISSIONS_CHANNEL_ADMIN && !(isChannelAdmin || isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPrivateChannelDeletion === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPrivateChannelDeletion === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-export function canManageMembers(channel, isChannelAdmin, isTeamAdmin, isSystemAdmin) {
-    if (global.window.mm_license.IsLicensed !== 'true') {
-        return true;
-    }
-
+export function canManageMembers(channel) {
     if (channel.type === Constants.PRIVATE_CHANNEL) {
-        if (global.window.mm_config.RestrictPrivateChannelManageMembers === Constants.PERMISSIONS_CHANNEL_ADMIN && !(isChannelAdmin || isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPrivateChannelManageMembers === Constants.PERMISSIONS_TEAM_ADMIN && !(isTeamAdmin || isSystemAdmin)) {
-            return false;
-        }
-        if (global.window.mm_config.RestrictPrivateChannelManageMembers === Constants.PERMISSIONS_SYSTEM_ADMIN && !isSystemAdmin) {
-            return false;
-        }
+        return haveIChannelPermission(
+            store.getState(),
+            {
+                channel: channel.id,
+                team: channel.team_id,
+                permission: Permissions.MANAGE_PRIVATE_CHANNEL_MEMBERS,
+            }
+        );
+    }
+
+    if (channel.type === Constants.OPEN_CHANNEL) {
+        return haveIChannelPermission(
+            store.getState(),
+            {
+                channel: channel.id,
+                team: channel.team_id,
+                permission: Permissions.MANAGE_PUBLIC_CHANNEL_MEMBERS,
+            }
+        );
     }
 
     return true;
@@ -197,40 +101,16 @@ export function getCountsStateFromStores(team = TeamStore.getCurrent(), teamMemb
     return {mentionCount, messageCount};
 }
 
-export function isChannelVisible(channel) {
-    return isOpenChannel(channel) ||
-        isPrivateChannel(channel) ||
-        isDirectChannelVisible(channel) ||
-        isGroupChannelVisible(channel);
-}
+export function findNextUnreadChannelId(curChannelId, allChannelIds, unreadChannelIds, direction) {
+    const curIndex = allChannelIds.indexOf(curChannelId);
 
-function isDirectChannelVisible(channel) {
-    if (!ChannelUtilsRedux.isDirectChannel(channel)) {
-        return false;
+    for (let i = 1; i < allChannelIds.length; i++) {
+        const index = Utils.mod(curIndex + (i * direction), allChannelIds.length);
+
+        if (unreadChannelIds.includes(allChannelIds[index])) {
+            return index;
+        }
     }
 
-    const state = store.getState();
-
-    return ChannelUtilsRedux.isDirectChannelVisible(
-        getCurrentUserId(state),
-        getConfig(state),
-        getMyPreferences(state),
-        channel,
-        getLastPostPerChannel(state)[channel.id]
-    );
-}
-
-function isGroupChannelVisible(channel) {
-    if (!ChannelUtilsRedux.isGroupChannel(channel)) {
-        return false;
-    }
-
-    const state = store.getState();
-
-    return ChannelUtilsRedux.isGroupChannelVisible(
-        getConfig(state),
-        getMyPreferences(state),
-        channel,
-        getLastPostPerChannel(state)[channel.id]
-    );
+    return -1;
 }

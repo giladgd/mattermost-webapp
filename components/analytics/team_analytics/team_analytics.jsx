@@ -1,24 +1,24 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {FormattedDate, FormattedHTMLMessage, FormattedMessage} from 'react-intl';
-
 import {General} from 'mattermost-redux/constants';
 
 import * as AdminActions from 'actions/admin_actions.jsx';
 import AnalyticsStore from 'stores/analytics_store.jsx';
 import BrowserStore from 'stores/browser_store.jsx';
-
 import {StatTypes} from 'utils/constants.jsx';
-
 import Banner from 'components/admin_console/banner.jsx';
 import LineChart from 'components/analytics/line_chart.jsx';
 import StatisticCount from 'components/analytics/statistic_count.jsx';
-import {formatPostsPerDayData, formatUsersWithPostsPerDayData} from 'components/analytics/system_analytics.jsx';
 import TableChart from 'components/analytics/table_chart.jsx';
 import LoadingScreen from 'components/loading_screen.jsx';
+
+import {getMonthLong} from 'utils/i18n';
+
+import {formatPostsPerDayData, formatUsersWithPostsPerDayData} from '../format.jsx';
 
 const LAST_ANALYTICS_TEAM = 'last_analytics_team';
 
@@ -35,6 +35,11 @@ export default class TeamAnalytics extends React.Component {
          */
         initialTeam: PropTypes.object,
 
+        /**
+         * The locale of the current user
+          */
+        locale: PropTypes.string.isRequired,
+
         actions: PropTypes.shape({
 
             /*
@@ -45,8 +50,8 @@ export default class TeamAnalytics extends React.Component {
             /*
              * Function to get users in a team
              */
-            getProfilesInTeam: PropTypes.func.isRequired
-        }).isRequired
+            getProfilesInTeam: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
@@ -58,7 +63,7 @@ export default class TeamAnalytics extends React.Component {
             team: props.initialTeam,
             stats: AnalyticsStore.getAllTeam(teamId),
             recentlyActiveUsers: [],
-            newUsers: []
+            newUsers: [],
         };
     }
 
@@ -72,7 +77,7 @@ export default class TeamAnalytics extends React.Component {
         this.props.actions.getTeams(0, 1000);
     }
 
-    componentWillUpdate(nextProps, nextState) {
+    UNSAFE_componentWillUpdate(nextProps, nextState) { // eslint-disable-line camelcase
         if (nextState.team && nextState.team !== this.state.team) {
             this.getData(nextState.team.id);
         }
@@ -87,7 +92,7 @@ export default class TeamAnalytics extends React.Component {
 
         this.setState({
             recentlyActiveUsers,
-            newUsers
+            newUsers,
         });
     }
 
@@ -98,7 +103,7 @@ export default class TeamAnalytics extends React.Component {
     onChange = () => {
         const teamId = this.state.team ? this.state.team.id : '';
         this.setState({
-            stats: AnalyticsStore.getAllTeam(teamId)
+            stats: AnalyticsStore.getAllTeam(teamId),
         });
     }
 
@@ -113,7 +118,7 @@ export default class TeamAnalytics extends React.Component {
         });
 
         this.setState({
-            team
+            team,
         });
 
         BrowserStore.setGlobalItem(LAST_ANALYTICS_TEAM, teamId);
@@ -141,7 +146,17 @@ export default class TeamAnalytics extends React.Component {
         const postCountsDay = formatPostsPerDayData(stats[StatTypes.POST_PER_DAY]);
         const userCountsWithPostsDay = formatUsersWithPostsPerDayData(stats[StatTypes.USERS_WITH_POSTS_PER_DAY]);
 
-        let banner;
+        let banner = (
+            <div className='banner'>
+                <div className='banner__content'>
+                    <FormattedMessage
+                        id='analytics.system.info'
+                        defaultMessage='Only data for the chosen team is calculated. Excludes posts made in direct message channels, which are not tied to a team.'
+                    />
+                </div>
+            </div>
+        );
+
         let totalPostsCount;
         let postTotalGraph;
         let userActiveGraph;
@@ -150,8 +165,8 @@ export default class TeamAnalytics extends React.Component {
                 <div className='banner'>
                     <div className='banner__content'>
                         <FormattedHTMLMessage
-                            id='analytics.system.skippedIntensiveQueries'
-                            defaultMessage="Some statistics have been omitted because they put too much load on the system to calculate. See <a href='https://docs.mattermost.com/administration/statistics.html' target='_blank'>https://docs.mattermost.com/administration/statistics.html</a> for more details."
+                            id='analytics.system.infoAndSkippedIntensiveQueries'
+                            defaultMessage="Only data for the chosen team is calculated. Excludes posts made in direct message channels, which are not tied to a team. <br><br> Some statistics have been omitted because they put too much load on the system to calculate. See <a href='https://docs.mattermost.com/administration/statistics.html' target='_blank'>https://docs.mattermost.com/administration/statistics.html</a> for more details."
                         />
                     </div>
                 </div>
@@ -205,8 +220,8 @@ export default class TeamAnalytics extends React.Component {
             );
         }
 
-        const recentActiveUsers = formatRecentUsersData(this.state.recentlyActiveUsers);
-        const newlyCreatedUsers = formatNewUsersData(this.state.newUsers);
+        const recentActiveUsers = formatRecentUsersData(this.state.recentlyActiveUsers, this.props.locale);
+        const newlyCreatedUsers = formatNewUsersData(this.state.newUsers, this.props.locale);
 
         const teams = this.props.teams.map((team) => {
             return (
@@ -223,12 +238,12 @@ export default class TeamAnalytics extends React.Component {
             <div className='wrapper--fixed team_statistics'>
                 <div className='admin-console-header team-statistics__header-row'>
                     <div className='team-statistics__header'>
-                        <h3>
+                        <h3 className='admin-console-header'>
                             <FormattedMessage
                                 id='analytics.team.title'
                                 defaultMessage='Team Statistics for {team}'
                                 values={{
-                                    team: this.state.team.display_name
+                                    team: this.state.team.display_name,
                                 }}
                             />
                         </h3>
@@ -249,7 +264,7 @@ export default class TeamAnalytics extends React.Component {
                         title={
                             <FormattedMessage
                                 id='analytics.team.totalUsers'
-                                defaultMessage='Total Users'
+                                defaultMessage='Total Active Users'
                             />
                         }
                         icon='fa-user'
@@ -304,7 +319,7 @@ export default class TeamAnalytics extends React.Component {
     }
 }
 
-export function formatRecentUsersData(data) {
+export function formatRecentUsersData(data, locale) {
     if (data == null) {
         return [];
     }
@@ -316,7 +331,7 @@ export function formatRecentUsersData(data) {
             <FormattedDate
                 value={user.last_activity_at}
                 day='numeric'
-                month='long'
+                month={getMonthLong(locale)}
                 year='numeric'
                 hour12={true}
                 hour='2-digit'
@@ -331,7 +346,7 @@ export function formatRecentUsersData(data) {
     return formattedData;
 }
 
-export function formatNewUsersData(data) {
+export function formatNewUsersData(data, locale) {
     if (data == null) {
         return [];
     }
@@ -343,7 +358,7 @@ export function formatNewUsersData(data) {
             <FormattedDate
                 value={user.create_at}
                 day='numeric'
-                month='long'
+                month={getMonthLong(locale)}
                 year='numeric'
                 hour12={true}
                 hour='2-digit'

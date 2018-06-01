@@ -1,36 +1,43 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
-import {browserHistory} from 'react-router';
 
 import {Client4} from 'mattermost-redux/client';
 import {Posts} from 'mattermost-redux/constants';
+import {getLicense, getConfig} from 'mattermost-redux/selectors/entities/general';
+import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
+import {
+    blendColors,
+    changeOpacity,
+} from 'mattermost-redux/utils/theme_utils';
+import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
+import {browserHistory} from 'utils/browser_history';
+import {searchForTerm} from 'actions/post_actions';
 import UserStore from 'stores/user_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import LocalizationStore from 'stores/localization_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
 import TeamStore from 'stores/team_store.jsx';
-
-import Constants from 'utils/constants.jsx';
+import Constants, {FileTypes, UserStatuses} from 'utils/constants.jsx';
 import * as UserAgent from 'utils/user_agent.jsx';
-
 import bing from 'images/bing.mp3';
 import icon50 from 'images/icon50x50.png';
 import iconWS from 'images/icon_WS.png';
-
-import AppDispatcher from '../dispatcher/app_dispatcher.jsx';
-
-var ActionTypes = Constants.ActionTypes;
+import {getSiteURL} from 'utils/url';
+import store from 'stores/redux_store.jsx';
 
 export function isEmail(email) {
-    // writing a regex to match all valid email addresses is really, really hard (see http://stackoverflow.com/a/201378)
-    // so we just do a simple check and rely on a verification email to tell if it's a real address
-    return (/^.+@.+$/).test(email);
+    // writing a regex to match all valid email addresses is really, really hard. (see http://stackoverflow.com/a/201378)
+    // this regex ensures:
+    // - at least one character that is not a space, comma, or @ symbol
+    // - followed by a single @ symbol
+    // - followed by at least one character that is not a space, comma, or @ symbol
+    // this prevents <Outlook Style> outlook.style@domain.com addresses and multiple comma-separated addresses from being accepted
+    return (/^[^ ,@]+@[^ ,@]+$/).test(email);
 }
 
 export function isMac() {
@@ -60,19 +67,28 @@ export function cmdOrCtrlPressed(e, allowAlt = false) {
     return (isMac() && e.metaKey) || (!isMac() && e.ctrlKey && !e.altKey);
 }
 
+export function isKeyPressed(event, key) {
+    if (typeof event.key !== 'undefined' && event.key !== 'Unidentified' && event.key !== 'Dead') {
+        return event.key === key[0] || event.key === key[0].toUpperCase();
+    }
+    return event.keyCode === key[1];
+}
+
 export function isInRole(roles, inRole) {
-    var parts = roles.split(' ');
-    for (var i = 0; i < parts.length; i++) {
-        if (parts[i] === inRole) {
-            return true;
+    if (roles) {
+        var parts = roles.split(' ');
+        for (var i = 0; i < parts.length; i++) {
+            if (parts[i] === inRole) {
+                return true;
+            }
         }
     }
 
     return false;
 }
 
-export function isChannelAdmin(roles) {
-    if (global.mm_license.IsLicensed !== 'true') {
+export function isChannelAdmin(isLicensed, roles) {
+    if (!isLicensed) {
         return false;
     }
 
@@ -103,25 +119,11 @@ export function isSystemAdmin(roles) {
     return false;
 }
 
-export function getCookie(name) {
-    var value = '; ' + document.cookie;
-    var parts = value.split('; ' + name + '=');
-    if (parts.length === 2) {
-        return parts.pop().split(';').shift();
-    }
-    return '';
-}
-
 var requestedNotificationPermission = false;
 
-export function notifyMe(title, body, channel, teamId, duration, silent) {
+export function notifyMe(title, body, channel, teamId, silent) {
     if (!('Notification' in window)) {
         return;
-    }
-
-    let notificationDuration = Constants.DEFAULT_NOTIFICATION_DURATION;
-    if (duration != null) {
-        notificationDuration = duration;
     }
 
     if (Notification.permission === 'granted' || (Notification.permission === 'default' && !requestedNotificationPermission)) {
@@ -136,25 +138,23 @@ export function notifyMe(title, body, channel, teamId, duration, silent) {
                             icon = iconWS;
                         }
 
-                        const notification = new Notification(title, {body, tag: body, icon, requireInteraction: notificationDuration === 0, silent});
+                        const notification = new Notification(title, {body, tag: body, icon, requireInteraction: false, silent});
                         notification.onclick = () => {
                             window.focus();
                             if (channel && (channel.type === Constants.DM_CHANNEL || channel.type === Constants.GM_CHANNEL)) {
-                                browserHistory.push(TeamStore.getCurrentTeamUrl() + '/channels/' + channel.name);
+                                browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + channel.name);
                             } else if (channel) {
-                                browserHistory.push(TeamStore.getTeamUrl(teamId) + '/channels/' + channel.name);
+                                browserHistory.push(TeamStore.getTeamRelativeUrl(teamId) + '/channels/' + channel.name);
                             } else if (teamId) {
-                                browserHistory.push(TeamStore.getTeamUrl(teamId) + '/channels/town-square');
+                                browserHistory.push(TeamStore.getTeamRelativeUrl(teamId) + `/channels/${Constants.DEFAULT_CHANNEL}`);
                             } else {
-                                browserHistory.push(TeamStore.getCurrentTeamUrl() + '/channels/town-square');
+                                browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + `/channels/${Constants.DEFAULT_CHANNEL}`);
                             }
                         };
 
-                        if (notificationDuration > 0) {
-                            setTimeout(() => {
-                                notification.close();
-                            }, notificationDuration);
-                        }
+                        setTimeout(() => {
+                            notification.close();
+                        }, Constants.DEFAULT_NOTIFICATION_DURATION);
                     } catch (e) {
                         console.error(e); //eslint-disable-line no-console
                     }
@@ -233,7 +233,20 @@ export function getTimestamp() {
     return Date.now();
 }
 
-// extracts links not styled by Markdown
+// Replaces all occurrences of a pattern
+export function loopReplacePattern(text, pattern, replacement) {
+    let result = text;
+
+    let match = pattern.exec(result);
+    while (match) {
+        result = result.replace(pattern, replacement);
+        match = pattern.exec(result);
+    }
+
+    return result;
+}
+
+// extracts the first link from the text
 export function extractFirstLink(text) {
     const pattern = /(^|[\s\n]|<br\/?>)((?:https?|ftp):\/\/[-A-Z0-9+\u0026\u2019@#/%?=()~_|!:,.;]*[-A-Z0-9+\u0026@#/%=~()_|])/i;
     let inText = text;
@@ -243,6 +256,10 @@ export function extractFirstLink(text) {
 
     // strip out inline markdown images
     inText = inText.replace(/!\[[^\]]*]\([^)]*\)/g, '');
+
+    // remove markdown *, ~~ and _ characters
+    inText = loopReplacePattern(inText, /(\*|~~)(.*?)\1/, '$2');
+    inText = loopReplacePattern(inText, /([\s\n]|^)_(.*?)_([\s\n]|$)/, '$1$2$3');
 
     const match = pattern.exec(inText);
     if (match) {
@@ -275,10 +292,10 @@ export function areObjectsEqual(x, y) {
     // Comparing dates is a common scenario. Another built-ins?
     // We can even handle functions passed across iframes
     if ((typeof x === 'function' && typeof y === 'function') ||
-       (x instanceof Date && y instanceof Date) ||
-       (x instanceof RegExp && y instanceof RegExp) ||
-       (x instanceof String && y instanceof String) ||
-       (x instanceof Number && y instanceof Number)) {
+        (x instanceof Date && y instanceof Date) ||
+        (x instanceof RegExp && y instanceof RegExp) ||
+        (x instanceof String && y instanceof String) ||
+        (x instanceof Number && y instanceof Number)) {
         return x.toString() === y.toString();
     }
 
@@ -308,7 +325,7 @@ export function areObjectsEqual(x, y) {
         return false;
     }
 
-    // Quick checking of one object beeing a subset of another.
+    // Quick checking of one object being a subset of another.
     for (p in y) {
         if (y.hasOwnProperty(p) !== x.hasOwnProperty(p)) {
             return false;
@@ -317,7 +334,7 @@ export function areObjectsEqual(x, y) {
         }
     }
 
-    for (p in x) {
+    for (p in x) { //eslint-disable-line guard-for-in
         if (y.hasOwnProperty(p) !== x.hasOwnProperty(p)) {
             return false;
         } else if (typeof y[p] !== typeof x[p]) {
@@ -372,7 +389,7 @@ export function replaceHtmlEntities(text) {
     var tagsToReplace = {
         '&amp;': '&',
         '&lt;': '<',
-        '&gt;': '>'
+        '&gt;': '>',
     };
     var newtext = text;
     for (var tag in tagsToReplace) {
@@ -388,7 +405,7 @@ export function insertHtmlEntities(text) {
     var tagsToReplace = {
         '&': '&amp;',
         '<': '&lt;',
-        '>': '&gt;'
+        '>': '&gt;',
     };
     var newtext = text;
     for (var tag in tagsToReplace) {
@@ -400,50 +417,59 @@ export function insertHtmlEntities(text) {
     return newtext;
 }
 
-export function getFileType(extin) {
-    var ext = extin.toLowerCase();
+export function isGIFImage(extin) {
+    return extin.toLowerCase() === Constants.IMAGE_TYPE_GIF;
+}
+
+const removeQuerystringOrHash = (extin) => {
+    return extin.split(/[?#]/)[0];
+};
+
+export const getFileType = (extin) => {
+    const ext = removeQuerystringOrHash(extin.toLowerCase());
+
     if (Constants.IMAGE_TYPES.indexOf(ext) > -1) {
-        return 'image';
+        return FileTypes.IMAGE;
     }
 
     if (Constants.AUDIO_TYPES.indexOf(ext) > -1) {
-        return 'audio';
+        return FileTypes.AUDIO;
     }
 
     if (Constants.VIDEO_TYPES.indexOf(ext) > -1) {
-        return 'video';
+        return FileTypes.VIDEO;
     }
 
     if (Constants.SPREADSHEET_TYPES.indexOf(ext) > -1) {
-        return 'spreadsheet';
+        return FileTypes.SPREADSHEET;
     }
 
     if (Constants.CODE_TYPES.indexOf(ext) > -1) {
-        return 'code';
+        return FileTypes.CODE;
     }
 
     if (Constants.WORD_TYPES.indexOf(ext) > -1) {
-        return 'word';
+        return FileTypes.WORD;
     }
 
     if (Constants.PRESENTATION_TYPES.indexOf(ext) > -1) {
-        return 'presentation';
+        return FileTypes.PRESENTATION;
     }
 
     if (Constants.PDF_TYPES.indexOf(ext) > -1) {
-        return 'pdf';
+        return FileTypes.PDF;
     }
 
     if (Constants.PATCH_TYPES.indexOf(ext) > -1) {
-        return 'patch';
+        return FileTypes.PATCH;
     }
 
     if (Constants.SVG_TYPES.indexOf(ext) > -1) {
-        return 'svg';
+        return FileTypes.SVG;
     }
 
-    return 'other';
-}
+    return FileTypes.OTHER;
+};
 
 export function getFileIconPath(fileInfo) {
     const fileType = getFileType(fileInfo.extension);
@@ -466,21 +492,6 @@ export function getIconClassName(fileTypeIn) {
     }
 
     return 'generic';
-}
-
-export function splitFileLocation(fileLocation) {
-    var fileSplit = fileLocation.split('.');
-
-    var ext = '';
-    if (fileSplit.length > 1) {
-        ext = fileSplit[fileSplit.length - 1];
-        fileSplit.splice(fileSplit.length - 1, 1);
-    }
-
-    var filePath = fileSplit.join('.');
-    var filename = filePath.split('/')[filePath.split('/').length - 1];
-
-    return {ext, name: filename, path: filePath};
 }
 
 export function sortFilesByName(files) {
@@ -509,7 +520,7 @@ export function applyTheme(theme) {
     if (theme.sidebarText) {
         changeCss('.app__body .ps-container > .ps-scrollbar-y-rail > .ps-scrollbar-y', 'background:' + theme.sidebarText);
         changeCss('.app__body .ps-container:hover .ps-scrollbar-y-rail:hover, .app__body .sidebar__switcher button:hover', 'background:' + changeOpacity(theme.sidebarText, 0.15));
-        changeCss('.app__body .sidebar--left .nav-pills__container li > h4, .app__body .sidebar--left .nav-pills__container li > .sidebar-item, .app__body .sidebar--left .nav-pills__container li > .nav-more, .app__body .sidebar--right, .app__body .modal .settings-modal .nav-pills>li button', 'color:' + changeOpacity(theme.sidebarText, 0.6));
+        changeCss('.app__body .sidebar--left .nav-pills__container li > h4, .app__body .sidebar--left .nav-pills__container li .sidebar-item, .app__body .sidebar--left .nav-pills__container li > .nav-more, .app__body .sidebar--right, .app__body .modal .settings-modal .nav-pills>li button', 'color:' + changeOpacity(theme.sidebarText, 0.6));
         changeCss('@media(max-width: 768px){.app__body .modal .settings-modal .settings-table .nav>li>a, .app__body .sidebar--menu', 'color:' + changeOpacity(theme.sidebarText, 0.8));
         changeCss('.app__body .sidebar--left .add-channel-btn', 'color:' + changeOpacity(theme.sidebarText, 0.8));
         changeCss('.sidebar--left .add-channel-btn:hover, .sidebar--left .add-channel-btn:focus', 'color:' + theme.sidebarText);
@@ -526,11 +537,11 @@ export function applyTheme(theme) {
     }
 
     if (theme.sidebarUnreadText) {
-        changeCss('.sidebar--left .nav-pills__container li> .sidebar-item.unread-title', 'color:' + theme.sidebarUnreadText + '!important;');
+        changeCss('.sidebar--left .nav-pills__container li .sidebar-item.unread-title', 'color:' + theme.sidebarUnreadText);
     }
 
     if (theme.sidebarTextHoverBg) {
-        changeCss('.sidebar--left .nav-pills__container li > .sidebar-item:hover, .sidebar--left .nav-pills__container li > .nav-more:hover, .app__body .modal .settings-modal .nav-pills>li:hover button', 'background:' + theme.sidebarTextHoverBg);
+        changeCss('.sidebar--left .nav-pills__container li .sidebar-item:hover, .sidebar--left .nav-pills__container li > .nav-more:hover, .app__body .modal .settings-modal .nav-pills>li:hover button', 'background:' + theme.sidebarTextHoverBg);
     }
 
     if (theme.sidebarTextActiveBorder) {
@@ -565,8 +576,8 @@ export function applyTheme(theme) {
         changeCss('.app__body #navbar .navbar-default .navbar-toggle .icon-bar', 'background:' + theme.sidebarHeaderTextColor);
         changeCss('.app__body .post-list__timestamp > div, .app__body .multi-teams .team-sidebar .team-wrapper .team-container a:hover .team-btn, .app__body .multi-teams .team-sidebar .team-wrapper .team-container.active .team-btn', 'border-color:' + changeOpacity(theme.sidebarHeaderTextColor, 0.5));
         changeCss('@media(max-width: 768px){.app__body .search-bar__container', 'color:' + theme.sidebarHeaderTextColor);
-        changeCss('@media(max-width: 768px){.app__body .search-bar__container .search__form', 'background:' + theme.sidebarHeaderTextColor);
         changeCss('.app__body .navbar-right__icon', 'background:' + changeOpacity(theme.sidebarHeaderTextColor, 0.2));
+        changeCss('.app__body .navbar-right__icon:hover, .app__body .navbar-right__icon:focus', 'background:' + changeOpacity(theme.sidebarHeaderTextColor, 0.3));
         changeCss('.app__body .navbar-right__icon svg', 'fill:' + theme.sidebarHeaderTextColor);
         changeCss('.app__body .navbar-right__icon svg', 'stroke:' + theme.sidebarHeaderTextColor);
     }
@@ -603,26 +614,28 @@ export function applyTheme(theme) {
     changeCss('.app__body .status.status--dnd', 'color:' + dndIndicator);
     changeCss('.app__body .status .dnd--icon', 'fill:' + dndIndicator);
 
-    if (theme.mentionBj) {
-        changeCss('.sidebar--left .nav-pills__unread-indicator', 'background:' + theme.mentionBj);
-        changeCss('.app__body .sidebar--left .badge', 'background:' + theme.mentionBj);
-        changeCss('.multi-teams .team-sidebar .badge', 'background:' + theme.mentionBj);
+    // Including 'mentionBj' for backwards compatability (old typo)
+    const mentionBg = theme.mentionBg || theme.mentionBj;
+    if (mentionBg) {
+        changeCss('.sidebar--left .nav-pills__unread-indicator', 'background:' + mentionBg);
+        changeCss('.app__body .sidebar--left .badge, .app__body .list-group-item.active > .badge, .nav-pills > .active > a > .badge', 'background:' + mentionBg);
+        changeCss('.multi-teams .team-sidebar .badge, .app__body .list-group-item.active > .badge, .nav-pills > .active > a > .badge', 'background:' + mentionBg);
     }
 
     if (theme.mentionColor) {
         changeCss('.sidebar--left .nav-pills__unread-indicator svg', 'fill:' + theme.mentionColor);
         changeCss('.app__body .sidebar--left .nav-pills__unread-indicator', 'color:' + theme.mentionColor);
-        changeCss('.app__body .sidebar--left .badge', 'color:' + theme.mentionColor);
-        changeCss('.app__body .multi-teams .team-sidebar .badge', 'color:' + theme.mentionColor);
+        changeCss('.app__body .sidebar--left .badge, .app__body .list-group-item.active > .badge, .nav-pills > .active > a > .badge', 'color:' + theme.mentionColor);
+        changeCss('.app__body .multi-teams .team-sidebar .badge, .app__body .list-group-item.active > .badge, .nav-pills > .active > a > .badge', 'color:' + theme.mentionColor);
     }
 
     if (theme.centerChannelBg) {
         changeCss('@media(max-width: 640px){.app__body .post .dropdown .dropdown-menu button', 'background:' + theme.centerChannelBg);
         changeCss('@media(min-width: 768px){.app__body .post:hover .post__header .col__reply, .app__body .post.post--hovered .post__header .col__reply', 'background:' + theme.centerChannelBg);
         changeCss('@media(max-width: 320px){.tutorial-steps__container', 'background:' + theme.centerChannelBg);
-        changeCss('.app__body .channel-header__info .channel-header__description:before, .app__body .app__content, .app__body .markdown__table, .app__body .markdown__table tbody tr, .app__body .suggestion-list__content, .app__body .modal .modal-content, .app__body .modal .modal-footer, .app__body .post.post--compact .post-image__column, .app__body .suggestion-list__divider > span, .app__body .status-wrapper .status, .app__body .alert.alert-transparent', 'background:' + theme.centerChannelBg);
+        changeCss('.app__body .bg--white, .app__body .system-notice, .app__body .channel-header__info .channel-header__description:before, .app__body .app__content, .app__body .markdown__table, .app__body .markdown__table tbody tr, .app__body .suggestion-list__content, .app__body .modal .modal-content, .app__body .modal .modal-footer, .app__body .post.post--compact .post-image__column, .app__body .suggestion-list__divider > span, .app__body .status-wrapper .status, .app__body .alert.alert-transparent, .app__body .post-image__column', 'background:' + theme.centerChannelBg);
         changeCss('#post-list .post-list-holder-by-time, .app__body .post .dropdown-menu a', 'background:' + theme.centerChannelBg);
-        changeCss('#post-create', 'background:' + theme.centerChannelBg);
+        changeCss('#post-create, .app__body .emoji-picker__preview', 'background:' + theme.centerChannelBg);
         changeCss('.app__body .date-separator .separator__text, .app__body .new-separator .separator__text', 'background:' + theme.centerChannelBg);
         changeCss('.app__body .post-image__details, .app__body .search-help-popover .search-autocomplete__divider span', 'background:' + theme.centerChannelBg);
         changeCss('.app__body .sidebar--right, .app__body .dropdown-menu, .app__body .popover, .app__body .tip-overlay', 'background:' + theme.centerChannelBg);
@@ -638,17 +651,39 @@ export function applyTheme(theme) {
         changeCss('.app__body .shortcut-key, .app__body .post-list__new-messages-below', 'color:' + theme.centerChannelBg);
         changeCss('.app__body .emoji-picker, .app__body .emoji-picker__search', 'background:' + theme.centerChannelBg);
         changeCss('.app__body .nav-tabs, .app__body .nav-tabs > li.active > a', 'background:' + theme.centerChannelBg);
+        changeCss('.app__body .post .post-image__columns, .app__body .post .file-view--single', `background:${theme.centerChannelBg}`);
+
+        changeCss(
+            '.app__body .post-list__table .post:not(.current--user) .post__body .post-collapse__gradient, ' +
+            '.app__body .sidebar-right__body .post:not(.current--user) .post-collapse__gradient, ' +
+            '.app__body .post-list__table .post.post--compact .post__body .post-collapse__gradient, ' +
+            '.app__body .sidebar-right__body .post.post--compact .post-collapse__gradient',
+            `background:linear-gradient(${changeOpacity(theme.centerChannelBg, 0)}, ${theme.centerChannelBg})`,
+        );
+        changeCss(
+            '.app__body .post-list__table .post:not(.current--user) .post__body .post-collapse__show-more, ' +
+            '.app__body .sidebar-right__body .post:not(.current--user) .post-collapse__show-more, ' +
+            '.app__body .post-list__table .post.post--compact .post__body .post-collapse__show-more, ' +
+            '.app__body .sidebar-right__body .post.post--compact .post-collapse__show-more',
+            `background-color:${theme.centerChannelBg}`,
+        );
+        changeCss('.app__body .post .post__body .post-collapse__show-more-button', `background:${theme.centerChannelBg}`);
+        changeCss('.app__body .post .post__body .post-collapse__show-more-button:hover', `color:${theme.centerChannelBg}`);
     }
 
     if (theme.centerChannelColor) {
         changeCss('.app__body .mentions__name .status.status--group, .app__body .multi-select__note', 'background:' + changeOpacity(theme.centerChannelColor, 0.12));
-        changeCss('.app__body .post .dropdown .dropdown-menu button, .app__body .member-list__popover .more-modal__body, .app__body .alert.alert-transparent, .app__body .channel-header .channel-header__icon, .app__body .search-bar__container .search__form, .app__body .table > thead > tr > th, .app__body .table > tbody > tr > td', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.12));
+        changeCss('.app__body .system-notice, .app__body .file-view--single .file__image .image-loaded, .app__body .post .dropdown .dropdown-menu button, .app__body .member-list__popover .more-modal__body, .app__body .alert.alert-transparent, .app__body .channel-header .channel-header__icon, .app__body .search-bar__container .search__form, .app__body .table > thead > tr > th, .app__body .table > tbody > tr > td', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.12));
         changeCss('.app__body .post-list__arrows, .app__body .post .flag-icon__container', 'fill:' + changeOpacity(theme.centerChannelColor, 0.3));
         changeCss('@media(min-width: 768px){.app__body .search__icon svg', 'stroke:' + changeOpacity(theme.centerChannelColor, 0.4));
+        changeCss('.app__body .post-image__details .post-image__download svg', 'stroke:' + changeOpacity(theme.centerChannelColor, 0.4));
+        changeCss('.app__body .post-image__details .post-image__download svg', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.35));
         changeCss('.app__body .channel-header__icon svg', 'fill:' + changeOpacity(theme.centerChannelColor, 0.4));
+        changeCss('.app__body .channel-header__icon .icon--stroke svg', 'stroke:' + changeOpacity(theme.centerChannelColor, 0.4));
+        changeCss('.app__body .channel-header__icon .icon--stroke.icon__search svg', 'stroke:' + changeOpacity(theme.centerChannelColor, 0.55));
         changeCss('.app__body .modal .status .offline--icon, .app__body .channel-header__links .icon, .app__body .sidebar--right .sidebar--right__subheader .usage__icon, .app__body .more-modal__header svg, .app__body .icon--body', 'fill:' + theme.centerChannelColor);
         changeCss('@media(min-width: 768px){.app__body .post:hover .post__header .col__reply, .app__body .post.post--hovered .post__header .col__reply', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
-        changeCss('.app__body .modal .shortcuts-modal .subsection, .app__body .sidebar--right .sidebar--right__header, .app__body .channel-header, .app__body .nav-tabs > li > a:hover, .app__body .nav-tabs, .app__body .nav-tabs > li.active > a, .app__body .nav-tabs, .app__body .nav-tabs > li.active > a:focus, .app__body .nav-tabs, .app__body .nav-tabs > li.active > a:hover, .app__body .post .dropdown-menu a, .sidebar--left, .app__body .suggestion-list__content .command', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
+        changeCss('.app__body .modal .settings-modal .team-img-preview div, .app__body .modal .settings-modal .team-img__container div, .app__body .system-notice__footer, .app__body .system-notice__footer .btn:last-child, .app__body .modal .shortcuts-modal .subsection, .app__body .sidebar--right .sidebar--right__header, .app__body .channel-header, .app__body .nav-tabs > li > a:hover, .app__body .nav-tabs, .app__body .nav-tabs > li.active > a, .app__body .nav-tabs, .app__body .nav-tabs > li.active > a:focus, .app__body .nav-tabs, .app__body .nav-tabs > li.active > a:hover, .app__body .post .dropdown-menu a, .sidebar--left, .app__body .suggestion-list__content .command', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('.app__body .post.post--system .post__body, .app__body .modal .channel-switch-modal .modal-header .close', 'color:' + changeOpacity(theme.centerChannelColor, 0.6));
         changeCss('.app__body .nav-tabs, .app__body .nav-tabs > li.active > a, pp__body .input-group-addon, .app__body .app__content, .app__body .post-create__container .post-create-body .btn-file, .app__body .post-create__container .post-create-footer .msg-typing, .app__body .suggestion-list__content .command, .app__body .modal .modal-content, .app__body .dropdown-menu, .app__body .popover, .app__body .mentions__name, .app__body .tip-overlay, .app__body .form-control[disabled], .app__body .form-control[readonly], .app__body fieldset[disabled] .form-control', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .post .post__link', 'color:' + changeOpacity(theme.centerChannelColor, 0.65));
@@ -660,6 +695,9 @@ export function applyTheme(theme) {
         changeCss('.app__body .dropdown-menu, .app__body .popover ', 'box-shadow: 0 17px 50px 0 ' + changeOpacity(theme.centerChannelColor, 0.1) + ', 0 12px 15px 0 ' + changeOpacity(theme.centerChannelColor, 0.1));
         changeCss('.app__body .dropdown-menu, .app__body .popover ', '-moz-box-shadow: 0 17px 50px 0 ' + changeOpacity(theme.centerChannelColor, 0.1) + ', 0 12px 15px 0 ' + changeOpacity(theme.centerChannelColor, 0.1));
         changeCss('.app__body .dropdown-menu, .app__body .popover ', '-webkit-box-shadow: 0 17px 50px 0 ' + changeOpacity(theme.centerChannelColor, 0.1) + ', 0 12px 15px 0 ' + changeOpacity(theme.centerChannelColor, 0.1));
+        changeCss('.app__body .shadow--2', 'box-shadow: 0 20px 30px 0' + changeOpacity(theme.centerChannelColor, 0.1) + ', 0 14px 20px 0 ' + changeOpacity(theme.centerChannelColor, 0.1));
+        changeCss('.app__body .shadow--2', '-moz-box-shadow: 0  20px 30px 0 ' + changeOpacity(theme.centerChannelColor, 0.1) + ', 0 14px 20px 0 ' + changeOpacity(theme.centerChannelColor, 0.1));
+        changeCss('.app__body .shadow--2', '-webkit-box-shadow: 0  20px 30px 0 ' + changeOpacity(theme.centerChannelColor, 0.1) + ', 0 14px 20px 0 ' + changeOpacity(theme.centerChannelColor, 0.1));
         changeCss('.app__body .shortcut-key, .app__body .post__body hr, .app__body .loading-screen .loading__content .round, .app__body .tutorial__circles .circle', 'background:' + theme.centerChannelColor);
         changeCss('.app__body .channel-header .heading', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .markdown__table tbody tr:nth-child(2n)', 'background:' + changeOpacity(theme.centerChannelColor, 0.07));
@@ -668,20 +706,21 @@ export function applyTheme(theme) {
         changeCss('.app__body .channel-header .pinned-posts-button svg', 'fill:' + changeOpacity(theme.centerChannelColor, 0.6));
         changeCss('.app__body .custom-textarea, .app__body .custom-textarea:focus, .app__body .file-preview, .app__body .post-image__details, .app__body .sidebar--right .sidebar-right__body, .app__body .markdown__table th, .app__body .markdown__table td, .app__body .suggestion-list__content, .app__body .modal .modal-content, .app__body .modal .settings-modal .settings-table .settings-content .divider-light, .app__body .webhooks__container, .app__body .dropdown-menu, .app__body .modal .modal-header', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('.app__body .popover.bottom>.arrow', 'border-bottom-color:' + changeOpacity(theme.centerChannelColor, 0.25));
-        changeCss('.app__body .search-help-popover .search-autocomplete__divider span, .app__body .suggestion-list__divider > span', 'color:' + changeOpacity(theme.centerChannelColor, 0.7));
+        changeCss('.app__body .btn.btn-transparent, .app__body .search-help-popover .search-autocomplete__divider span, .app__body .suggestion-list__divider > span', 'color:' + changeOpacity(theme.centerChannelColor, 0.7));
         changeCss('.app__body .popover.right>.arrow', 'border-right-color:' + changeOpacity(theme.centerChannelColor, 0.25));
         changeCss('.app__body .popover.left>.arrow', 'border-left-color:' + changeOpacity(theme.centerChannelColor, 0.25));
         changeCss('.app__body .popover.top>.arrow', 'border-top-color:' + changeOpacity(theme.centerChannelColor, 0.25));
         changeCss('.app__body .suggestion-list__content .command, .app__body .popover .popover-title', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('.app__body .suggestion-list__content .command, .app__body .popover .popover__row', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('.app__body .suggestion-list__divider:before, .app__body .dropdown-menu .divider, .app__body .search-help-popover .search-autocomplete__divider:before', 'background:' + theme.centerChannelColor);
-        changeCss('.app__body .custom-textarea', 'color:' + theme.centerChannelColor);
-        changeCss('.app__body .post-image__column', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
+        changeCss('body.app__body, .app__body .custom-textarea', 'color:' + theme.centerChannelColor);
+        changeCss('.app__body .post-image__column', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.1));
         changeCss('.app__body .post-image__details', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .post-image__column a, .app__body .post-image__column a:hover, .app__body .post-image__column a:focus', 'color:' + theme.centerChannelColor);
         changeCss('@media(min-width: 768px){.app__body .search-bar__container .search__form .search-bar, .app__body .form-control', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .input-group-addon, .app__body .form-control, .app__body .post-create__container .post-body__actions > span, .app__body .post-create__container .post-body__actions > a', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.1));
         changeCss('@media(min-width: 768px){.app__body .post-list__table .post-list__content .dropdown-menu a:hover, .dropdown-menu > li > button:hover', 'background:' + changeOpacity(theme.centerChannelColor, 0.1));
+        changeCss('.app__body .dropdown-menu div > a:focus, .app__body .dropdown-menu div > a:hover, .dropdown-menu li > a:focus, .app__body .dropdown-menu li > a:hover', 'background:' + changeOpacity(theme.centerChannelColor, 0.1));
         changeCss('.app__body .form-control:focus', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('.app__body .attachment .attachment__content, .app__body .attachment-actions button', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.3));
         changeCss('.app__body .attachment-actions button:focus, .app__body .attachment-actions button:hover', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.5));
@@ -699,11 +738,11 @@ export function applyTheme(theme) {
         changeCss('.app__body .attachment__body__wrap.btn-close', 'background:' + changeOpacity(theme.centerChannelColor, 0.08));
         changeCss('.app__body .attachment__body__wrap.btn-close', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('@media(min-width: 768px){.app__body .post:hover, .app__body .more-modal__list .more-modal__row:hover, .app__body .modal .settings-modal .settings-table .settings-content .section-min:hover', 'background:' + changeOpacity(theme.centerChannelColor, 0.08));
+        changeCss('@media(min-width: 768px){.app__body .post.current--user:hover .post__body ', 'background: none;');
         changeCss('.app__body .more-modal__row.more-modal__row--selected, .app__body .date-separator.hovered--before:after, .app__body .date-separator.hovered--after:before, .app__body .new-separator.hovered--after:before, .app__body .new-separator.hovered--before:after', 'background:' + changeOpacity(theme.centerChannelColor, 0.07));
         changeCss('@media(min-width: 768px){.app__body .suggestion-list__content .command:hover, .app__body .mentions__name:hover, .app__body .dropdown-menu>li>a:focus, .app__body .dropdown-menu>li>a:hover', 'background:' + changeOpacity(theme.centerChannelColor, 0.15));
         changeCss('.app__body .suggestion--selected, .app__body .emoticon-suggestion:hover, .app__body .bot-indicator', 'background:' + changeOpacity(theme.centerChannelColor, 0.15));
         changeCss('code, .app__body .form-control[disabled], .app__body .form-control[readonly], .app__body fieldset[disabled] .form-control', 'background:' + changeOpacity(theme.centerChannelColor, 0.1));
-        changeCss('@media(min-width: 960px){.app__body .post.current--user:hover .post__body ', 'background: none;');
         changeCss('.app__body .sidebar--right', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .search-help-popover .search-autocomplete__item:hover, .app__body .modal .settings-modal .settings-table .settings-content .appearance-section .theme-elements__body', 'background:' + changeOpacity(theme.centerChannelColor, 0.05));
         changeCss('.app__body .search-help-popover .search-autocomplete__item.selected', 'background:' + changeOpacity(theme.centerChannelColor, 0.15));
@@ -729,9 +768,80 @@ export function applyTheme(theme) {
         changeCss('.app__body .emoji-picker__category, .app__body .emoji-picker__category:focus, .app__body .emoji-picker__category:hover', 'color:' + changeOpacity(theme.centerChannelColor, 0.3));
         changeCss('.app__body .emoji-picker__category--selected, .app__body .emoji-picker__category--selected:focus, .app__body .emoji-picker__category--selected:hover', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .emoji-picker__item-wrapper:hover', 'background-color:' + changeOpacity(theme.centerChannelColor, 0.8));
-        changeCss('.app__body .emojisprite:hover', 'background-color:' + changeOpacity(theme.centerChannelColor, 0.8));
+        changeCss('.app__body .emoji-picker-items__container .emoji-picker__item.selected', 'background-color:' + changeOpacity(theme.centerChannelColor, 0.8));
         changeCss('.app__body .icon__postcontent_picker:hover', 'color:' + changeOpacity(theme.centerChannelColor, 0.8));
         changeCss('.app__body .popover', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.07));
+
+        changeCss('.app__body .post .post__body .post-collapse__show-more-button', `border-color:${changeOpacity(theme.centerChannelColor, 0.1)}`);
+        changeCss('.app__body .post .post__body .post-collapse__show-more-line', `background-color:${changeOpacity(theme.centerChannelColor, 0.1)}`);
+
+        if (theme.centerChannelBg) {
+            const ownPostBg = blendColors(theme.centerChannelBg, theme.centerChannelColor, 0.05);
+            const hoveredPostBg = blendColors(theme.centerChannelBg, theme.centerChannelColor, 0.08);
+
+            // Apply a gradient to fade out the text in a collapsed post
+            changeCss(
+                '.app__body .post-list__table .post.current--user:not(.post--compact) .post-collapse__gradient, ' +
+                '.app__body .sidebar-right__body .post.current--user:not(.post--compact) .post-collapse__gradient, ' +
+                '.app__body #thread--root .post-collapse__gradient',
+                `background:linear-gradient(${changeOpacity(ownPostBg, 0)}, ${ownPostBg})`,
+            );
+            changeCss(
+                '.app__body .post-list__table .post.current--user:not(.post--compact) .post-collapse__show-more, ' +
+                '.app__body .sidebar-right__body .post.current--user:not(.post--compact) .post-collapse__show-more, ' +
+                '.app__body #thread--root .post-collapse__show-more',
+                `background-color:${ownPostBg}`,
+            );
+
+            changeCss(
+                '@media(min-width: 768px){.app__body .post-list__table .post:hover .post__body .post-collapse__gradient, ' +
+                '.app__body .sidebar-right__body .post:hover .post__body .post-collapse__gradient',
+                `background:linear-gradient(${changeOpacity(hoveredPostBg, 0)}, ${hoveredPostBg})`,
+            );
+            changeCss(
+                '@media(min-width: 768px){.app__body .post-list__table .post:hover .post__body .post-collapse__show-more, ' +
+                '.app__body .sidebar-right__body .post:hover .post__body .post-collapse__show-more',
+                `background-color:${hoveredPostBg}`,
+            );
+            changeCss(
+                '.app__body .post-list__table .post.post--hovered .post__body .post-collapse__gradient, ' +
+                '.app__body .sidebar-right__body .post.post--hovered .post__body .post-collapse__gradient',
+                `background:linear-gradient(${changeOpacity(hoveredPostBg, 0)}, ${hoveredPostBg})`,
+            );
+            changeCss(
+                '.app__body .post-list__table .post.post--hovered .post__body .post-collapse__show-more, ' +
+                '.app__body .sidebar-right__body .post.post--hovered .post__body .post-collapse__show-more',
+                `background-color:${hoveredPostBg}`,
+            );
+
+            // Apply a background behind the file attachments to cover any overflowing text in a collapsed post
+            changeCss(
+                '.app__body .post.current--user:not(.post--compact) .post-image__columns, ' +
+                '.app__body .post.current--user:not(.post--compact) .file-view--single, ' +
+                '.app__body .post--root.post--thread .post-image__columns, ' +
+                '.app__body .post--root.post--thread .file-view--single',
+                `background:${ownPostBg}`
+            );
+
+            changeCss(
+                '@media(min-width: 768px){.app__body .post-list__table .post:hover .post-image__columns, ' +
+                '.app__body .post-list__table .post:hover .file-view--single, ' +
+                '.app__body .post-right-comments-container .post:hover .post-image__columns, ' +
+                '.app__body .post-right-comments-container .post:hover .file-view--single, ' +
+                '.app__body .search-items-container .post:hover .post-image__columns, ' +
+                '.app__body .search-items-container .post:hover .file-view--single',
+                `background:${hoveredPostBg}`
+            );
+            changeCss(
+                '.app__body .post-list__table .post.post--hovered .post-image__columns, ' +
+                '.app__body .post-list__table .post.post--hovered .file-view--single, ' +
+                '.app__body .post-right-comments-container .post.post--hovered .post-image__columns, ' +
+                '.app__body .post-right-comments-container .post.post--hovered .file-view--single, ' +
+                '.app__body .search-items-container .post.post--hovered .post-image__columns, ' +
+                '.app__body .search-items-container .post.post--hovered .file-view--single',
+                `background:${hoveredPostBg}`
+            );
+        }
     }
 
     if (theme.newMessageSeparator) {
@@ -740,7 +850,7 @@ export function applyTheme(theme) {
     }
 
     if (theme.linkColor) {
-        changeCss('.app__body .post-add-reaction:hover .post-reaction, .app__body .channel-header .channel-header__favorites.inactive:hover, .app__body .channel-header__links > a.active, .app__body a, .app__body a:focus, .app__body a:hover, .app__body .channel-header__links > .color--link.active, .app__body .color--link, .app__body a:focus, .app__body .color--link:hover, .app__body .btn, .app__body .btn:focus, .app__body .btn:hover', 'color:' + theme.linkColor);
+        changeCss('.app__body .webrtc__header:not(.offline) button:hover, .app__body .post-add-reaction:hover .post-reaction, .app__body .channel-header .channel-header__favorites.inactive:hover, .app__body .channel-header__links > a.active, .app__body a, .app__body a:focus, .app__body a:hover, .app__body .channel-header__links > .color--link.active, .app__body .color--link, .app__body a:focus, .app__body .color--link:hover, .app__body .btn, .app__body .btn:focus, .app__body .btn:hover', 'color:' + theme.linkColor);
         changeCss('.app__body .attachment .attachment__container', 'border-left-color:' + changeOpacity(theme.linkColor, 0.5));
         changeCss('.app__body .member-list__popover .more-modal__list .more-modal__row:hover', 'background:' + changeOpacity(theme.linkColor, 0.08));
         changeCss('.app__body .channel-header__links .icon:hover, .app__body .channel-header__links > a.active .icon, .app__body .post .flag-icon__container.visible, .app__body .post .reacticon__container, .app__body .post .comment-icon__container, .app__body .post .post__reply', 'fill:' + theme.linkColor);
@@ -749,28 +859,33 @@ export function applyTheme(theme) {
         changeCss('.app__body .channel-header .channel-header__icon:hover #member_popover, .app__body .channel-header .channel-header__icon.active #member_popover', 'color:' + theme.linkColor);
         changeCss('.app__body .channel-header .pinned-posts-button:hover svg', 'fill:' + changeOpacity(theme.linkColor, 0.6));
         changeCss('.app__body .member-list__popover .more-modal__actions svg, .app__body .channel-header .channel-header__icon:hover svg, .app__body .channel-header .channel-header__icon.active svg', 'fill:' + theme.linkColor);
+        changeCss('.app__body .channel-header .channel-header__icon:hover .icon--stroke svg', 'stroke:' + theme.linkColor);
         changeCss('.app__body .post-reaction.post-reaction--current-user', 'background:' + changeOpacity(theme.linkColor, 0.1));
         changeCss('.app__body .post-add-reaction:hover .post-reaction, .app__body .post-reaction.post-reaction--current-user', 'border-color:' + changeOpacity(theme.linkColor, 0.4));
         changeCss('.app__body .member-list__popover .more-modal__list .more-modal__row:hover, .app__body .channel-header .channel-header__icon:hover, .app__body .channel-header .channel-header__icon.active, .app__body .search-bar__container .search__form.focused', 'border-color:' + theme.linkColor);
         changeCss('.app__body .post-reaction.post-reaction--current-user', 'color:' + theme.linkColor);
-        changeCss('.app__body .channel-header__title.open .heading, .app__body .channel-header__info .channel-header__title.open .header-dropdown__icon', 'color:' + theme.linkColor);
-        changeCss('.app__body .channel-header .dropdown-toggle:hover .heading, .app__body .channel-header .dropdown-toggle:hover .header-dropdown__icon', 'color:' + theme.linkColor);
+        changeCss('.app__body .channel-header .dropdown-toggle:hover .heading, .app__body .channel-header .dropdown-toggle:hover .header-dropdown__icon, .app__body .channel-header__title .open .heading, .app__body .channel-header__info .channel-header__title .open .header-dropdown__icon, .app__body .channel-header__title .open .heading, .app__body .channel-header__info .channel-header__title .open .heading', 'color:' + theme.linkColor);
         changeCss('.emoji-picker__container .icon--emoji.active svg', 'fill:' + theme.linkColor);
         changeCss('.sidebar--right--expanded .sidebar--right__expand', 'color:' + theme.linkColor);
+        changeCss('.app__body .post .post__body .post-collapse__show-more', `color:${theme.linkColor}`);
+        changeCss('.app__body .post .post__body .post-collapse__show-more-button:hover', `background-color:${theme.linkColor}`);
     }
 
     if (theme.buttonBg) {
-        changeCss('.app__body .new-messages__button div, .app__body .btn.btn-primary, .app__body .tutorial__circles .circle.active, .app__body .post__pinned-badge', 'background:' + theme.buttonBg);
+        changeCss('.app__body .modal .settings-modal .team-img__remove:hover, .app__body .btn.btn-transparent:hover, .app__body .btn.btn-transparent:active, .app__body .post-image__details .post-image__download svg:hover, .app__body .file-view--single .file__download:hover, .app__body .new-messages__button div, .app__body .btn.btn-primary, .app__body .tutorial__circles .circle.active, .app__body .post__pinned-badge', 'background:' + theme.buttonBg);
+        changeCss('.app__body .system-notice__logo svg', 'fill:' + theme.buttonBg);
+        changeCss('.app__body .post-image__details .post-image__download svg:hover', 'border-color:' + theme.buttonBg);
         changeCss('.app__body .btn.btn-primary:hover, .app__body .btn.btn-primary:active, .app__body .btn.btn-primary:focus', 'background:' + changeColor(theme.buttonBg, -0.15));
     }
 
     if (theme.buttonColor) {
-        changeCss('.app__body .new-messages__button div, .app__body .btn.btn-primary, .app__body .post__pinned-badge', 'color:' + theme.buttonColor);
+        changeCss('.app__body .modal .settings-modal .team-img__remove:hover, .app__body .btn.btn-transparent:hover, .app__body .btn.btn-transparent:active, .app__body .new-messages__button div, .app__body .btn.btn-primary, .app__body .post__pinned-badge', 'color:' + theme.buttonColor);
         changeCss('.app__body .new-messages__button svg', 'fill:' + theme.buttonColor);
+        changeCss('.app__body .post-image__details .post-image__download svg:hover, .app__body .file-view--single .file__download svg', 'stroke:' + theme.buttonColor);
     }
 
     if (theme.errorTextColor) {
-        changeCss('.app__body .color--error, .app__body .has-error .help-block, .app__body .has-error .control-label, .app__body .has-error .radio, .app__body .has-error .checkbox, .app__body .has-error .radio-inline, .app__body .has-error .checkbox-inline, .app__body .has-error.radio label, .app__body .has-error.checkbox label, .app__body .has-error.radio-inline label, .app__body .has-error.checkbox-inline label', 'color:' + theme.errorTextColor);
+        changeCss('.app__body .modal .settings-modal .settings-table .settings-content .has-error, .app__body .modal .form-horizontal .input__help.error, .app__body .color--error, .app__body .has-error .help-block, .app__body .has-error .control-label, .app__body .has-error .radio, .app__body .has-error .checkbox, .app__body .has-error .radio-inline, .app__body .has-error .checkbox-inline, .app__body .has-error.radio label, .app__body .has-error.checkbox label, .app__body .has-error.radio-inline label, .app__body .has-error.checkbox-inline label', 'color:' + theme.errorTextColor);
     }
 
     if (theme.mentionHighlightBg) {
@@ -820,7 +935,11 @@ export function changeCss(className, classValue) {
     if (className.indexOf('@media') >= 0) {
         mediaQuery = '}';
     }
-    styleSheet.insertRule(className + '{' + classValue + '}' + mediaQuery, styleSheet.cssRules.length);
+    try {
+        styleSheet.insertRule(className + '{' + classValue + '}' + mediaQuery, styleSheet.cssRules.length);
+    } catch (e) {
+        console.error(e); // eslint-disable-line no-console
+    }
 }
 
 export function updateCodeTheme(userTheme) {
@@ -897,21 +1016,6 @@ export function setCaretPosition(input, pos) {
     setSelectionRange(input, pos, pos);
 }
 
-export function getSelectedText(input) {
-    var selectedText;
-    if (typeof document.selection !== 'undefined') {
-        input.focus();
-        var sel = document.selection.createRange();
-        selectedText = sel.text;
-    } else if (typeof input.selectionStart !== 'undefined') {
-        var startPos = input.selectionStart;
-        var endPos = input.selectionEnd;
-        selectedText = input.value.substring(startPos, endPos);
-    }
-
-    return selectedText;
-}
-
 export function isValidUsername(name) {
     var error = '';
     if (!name) {
@@ -939,9 +1043,15 @@ export function isMobile() {
 }
 
 export function getDirectTeammate(channelId) {
-    var userIds = ChannelStore.get(channelId).name.split('__');
-    var curUserId = UserStore.getCurrentId();
-    var teammate = {};
+    let teammate = {};
+
+    const channel = ChannelStore.get(channelId);
+    if (!channel) {
+        return teammate;
+    }
+
+    const userIds = channel.name.split('__');
+    const curUserId = UserStore.getCurrentId();
 
     if (userIds.length !== 2 || userIds.indexOf(curUserId) === -1) {
         return teammate;
@@ -1002,28 +1112,6 @@ export function changeColor(colourIn, amt) {
     return rgb;
 }
 
-export function changeOpacity(oldColor, opacity) {
-    var color = oldColor;
-    if (color[0] === '#') {
-        color = color.slice(1);
-    }
-
-    if (color.length === 3) {
-        const tempColor = color;
-        color = '';
-
-        color += tempColor[0] + tempColor[0];
-        color += tempColor[1] + tempColor[1];
-        color += tempColor[2] + tempColor[2];
-    }
-
-    var r = parseInt(color.substring(0, 2), 16);
-    var g = parseInt(color.substring(2, 4), 16);
-    var b = parseInt(color.substring(4, 6), 16);
-
-    return 'rgba(' + r + ',' + g + ',' + b + ',' + opacity + ')';
-}
-
 export function getFullName(user) {
     if (user.first_name && user.last_name) {
         return user.first_name + ' ' + user.last_name;
@@ -1052,27 +1140,50 @@ export function getDisplayName(user) {
 /**
  * Gets the display name of the user with the specified id, respecting the TeammateNameDisplay configuration setting
  */
-export function displayUsername(userId) {
-    return displayUsernameForUser(UserStore.getProfile(userId));
+export function getDisplayNameByUserId(userId, usernameWithPrefix = false) {
+    return getDisplayNameByUser(UserStore.getProfile(userId), usernameWithPrefix);
 }
 
 /**
  * Gets the display name of the specified user, respecting the TeammateNameDisplay configuration setting
  */
-export function displayUsernameForUser(user) {
+export function getDisplayNameByUser(user, usernameWithPrefix = false) {
+    const state = store.getState();
+    const teammateNameDisplay = getTeammateNameDisplaySetting(state);
     if (user) {
-        const nameFormat = global.window.mm_config.TeammateNameDisplay;
-        let name = user.username;
-        if (nameFormat === Constants.TEAMMATE_NAME_DISPLAY.SHOW_NICKNAME_FULLNAME && user.nickname && user.nickname !== '') {
-            name = user.nickname;
-        } else if ((user.first_name || user.last_name) && (nameFormat === Constants.TEAMMATE_NAME_DISPLAY.SHOW_NICKNAME_FULLNAME || nameFormat === Constants.TEAMMATE_NAME_DISPLAY.SHOW_FULLNAME)) {
-            name = getFullName(user);
-        }
-
-        return name;
+        return displayUsername(user, teammateNameDisplay, usernameWithPrefix);
     }
 
     return '';
+}
+
+const UserStatusesWeight = {
+    online: 0,
+    away: 1,
+    dnd: 2,
+    offline: 3,
+    ooo: 3,
+};
+
+/**
+ * Sort users by status then by display name, respecting the TeammateNameDisplay configuration setting
+ */
+export function sortUsersByStatusAndDisplayName(users, statusesByUserId) {
+    function compareUsers(a, b) {
+        const aStatus = statusesByUserId[a.id] || UserStatuses.OFFLINE;
+        const bStatus = statusesByUserId[b.id] || UserStatuses.OFFLINE;
+
+        if (UserStatusesWeight[aStatus] !== UserStatusesWeight[bStatus]) {
+            return UserStatusesWeight[aStatus] - UserStatusesWeight[bStatus];
+        }
+
+        const aName = getDisplayNameByUser(a);
+        const bName = getDisplayNameByUser(b);
+
+        return aName.localeCompare(bName);
+    }
+
+    return users.sort(compareUsers);
 }
 
 /**
@@ -1128,9 +1239,22 @@ export function imageURLForUser(userIdOrObject) {
         if (profile) {
             return imageURLForUser(profile);
         }
-        return Client4.getUsersRoute() + '/' + userIdOrObject + '/image?_=0';
+        return Constants.TRANSPARENT_PIXEL;
     }
     return Client4.getUsersRoute() + '/' + userIdOrObject.id + '/image?_=' + (userIdOrObject.last_picture_update || 0);
+}
+
+// in contrast to Client4.getTeamIconUrl, for ui logic this function returns null if last_team_icon_update is unset
+export function imageURLForTeam(teamIdOrObject) {
+    if (typeof teamIdOrObject == 'string') {
+        const team = TeamStore.get(teamIdOrObject);
+        if (team) {
+            return imageURLForTeam(team);
+        }
+        return null;
+    }
+
+    return teamIdOrObject.last_team_icon_update ? Client4.getTeamIconUrl(teamIdOrObject.id, teamIdOrObject.last_team_icon_update) : null;
 }
 
 // Converts a file size in bytes into a human-readable string of the form '123MB'.
@@ -1147,17 +1271,6 @@ export function fileSizeToString(bytes) {
     }
 
     return bytes + 'B';
-}
-
-// Gets the websocket port to use. Configurable on the server.
-export function getWebsocketPort(protocol) {
-    if ((/^wss:/).test(protocol)) { // wss://
-        return ':' + global.window.mm_config.WebsocketSecurePort;
-    }
-    if ((/^ws:/).test(protocol)) {
-        return ':' + global.window.mm_config.WebsocketPort;
-    }
-    return '';
 }
 
 // Generates a RFC-4122 version 4 compliant globally unique identifier.
@@ -1211,11 +1324,6 @@ export function getUserIdFromChannelId(channelId) {
     return otherUserId;
 }
 
-// Returns true if the given channel is a direct channel between the current user and the given one
-export function isDirectChannelForUser(otherUserId, channel) {
-    return channel.type === Constants.DM_CHANNEL && getUserIdFromChannelName(channel) === otherUserId;
-}
-
 export function importSlack(file, success, error) {
     Client4.importTeam(TeamStore.getCurrent().id, file, 'slack').then(success).catch(error);
 }
@@ -1226,24 +1334,6 @@ export function windowWidth() {
 
 export function windowHeight() {
     return $(window).height();
-}
-
-export function getChannelTerm(channelType) {
-    let channelTerm = 'Channel';
-    if (channelType === Constants.PRIVATE_CHANNEL) {
-        channelTerm = 'Group';
-    }
-
-    return channelTerm;
-}
-
-export function getPostTerm(post) {
-    let postTerm = 'Post';
-    if (post.root_id) {
-        postTerm = 'Comment';
-    }
-
-    return postTerm;
 }
 
 export function isFeatureEnabled(feature) {
@@ -1311,8 +1401,14 @@ export function mod(a, b) {
     return ((a % b) + b) % b;
 }
 
+export const REACTION_PATTERN = /^(\+|-):([^:\s]+):\s*$/;
+
 export function canCreateCustomEmoji(user) {
-    if (global.window.mm_license.IsLicensed !== 'true') {
+    const state = store.getState();
+    const license = getLicense(state);
+    const config = getConfig(state);
+
+    if (license.IsLicensed !== 'true') {
         return true;
     }
 
@@ -1321,9 +1417,9 @@ export function canCreateCustomEmoji(user) {
     }
 
     // already checked for system admin for both these cases
-    if (window.mm_config.RestrictCustomEmojiCreation === 'system_admin') {
+    if (config.RestrictCustomEmojiCreation === 'system_admin') {
         return false;
-    } else if (window.mm_config.RestrictCustomEmojiCreation === 'admin') {
+    } else if (config.RestrictCustomEmojiCreation === 'admin') {
         // check whether the user is an admin on any of their teams
         if (TeamStore.isTeamAdminForAnyTeam()) {
             return true;
@@ -1335,68 +1431,72 @@ export function canCreateCustomEmoji(user) {
     return true;
 }
 
-export function isValidPassword(password) {
-    let errorMsg = '';
+export function getPasswordConfig(config) {
+    return {
+        minimumLength: parseInt(config.PasswordMinimumLength, 10),
+        requireLowercase: config.PasswordRequireLowercase === 'true',
+        requireUppercase: config.PasswordRequireUppercase === 'true',
+        requireNumber: config.PasswordRequireNumber === 'true',
+        requireSymbol: config.PasswordRequireSymbol === 'true',
+    };
+}
+
+export function isValidPassword(password, passwordConfig) {
     let errorId = 'user.settings.security.passwordError';
-    let error = false;
-    let minimumLength = Constants.MIN_PASSWORD_LENGTH;
+    let valid = true;
+    const minimumLength = passwordConfig.minimumLength || Constants.MIN_PASSWORD_LENGTH;
 
-    if (global.window.mm_config.BuildEnterpriseReady === 'true' && global.window.mm_license.IsLicensed === 'true' && global.window.mm_license.PasswordRequirements === 'true') {
-        if (password.length < parseInt(global.window.mm_config.PasswordMinimumLength, 10) || password.length > Constants.MAX_PASSWORD_LENGTH) {
-            error = true;
-        }
-
-        if (global.window.mm_config.PasswordRequireLowercase === 'true') {
-            if (!password.match(/[a-z]/)) {
-                error = true;
-            }
-
-            errorId += 'Lowercase';
-        }
-
-        if (global.window.mm_config.PasswordRequireUppercase === 'true') {
-            if (!password.match(/[0-9]/)) {
-                error = true;
-            }
-
-            errorId += 'Uppercase';
-        }
-
-        if (global.window.mm_config.PasswordRequireNumber === 'true') {
-            if (!password.match(/[A-Z]/)) {
-                error = true;
-            }
-
-            errorId += 'Number';
-        }
-
-        if (global.window.mm_config.PasswordRequireSymbol === 'true') {
-            if (!password.match(/[ !"\\#$%&'()*+,-./:;<=>?@[\]^_`|~]/)) {
-                error = true;
-            }
-
-            errorId += 'Symbol';
-        }
-
-        minimumLength = global.window.mm_config.PasswordMinimumLength;
-    } else if (password.length < Constants.MIN_PASSWORD_LENGTH || password.length > Constants.MAX_PASSWORD_LENGTH) {
-        error = true;
+    if (password.length < minimumLength || password.length > Constants.MAX_PASSWORD_LENGTH) {
+        valid = false;
     }
 
-    if (error) {
-        errorMsg = (
+    if (passwordConfig.requireLowercase) {
+        if (!password.match(/[a-z]/)) {
+            valid = false;
+        }
+
+        errorId += 'Lowercase';
+    }
+
+    if (passwordConfig.requireUppercase) {
+        if (!password.match(/[A-Z]/)) {
+            valid = false;
+        }
+
+        errorId += 'Uppercase';
+    }
+
+    if (passwordConfig.requireNumber) {
+        if (!password.match(/[0-9]/)) {
+            valid = false;
+        }
+
+        errorId += 'Number';
+    }
+
+    if (passwordConfig.requireSymbol) {
+        if (!password.match(/[ !"\\#$%&'()*+,-./:;<=>?@[\]^_`|~]/)) {
+            valid = false;
+        }
+
+        errorId += 'Symbol';
+    }
+
+    let error;
+    if (!valid) {
+        error = (
             <FormattedMessage
                 id={errorId}
                 default='Your password must contain between {min} and {max} characters.'
                 values={{
                     min: minimumLength,
-                    max: Constants.MAX_PASSWORD_LENGTH
+                    max: Constants.MAX_PASSWORD_LENGTH,
                 }}
             />
         );
     }
 
-    return errorMsg;
+    return {valid, error};
 }
 
 export function handleFormattedTextClick(e) {
@@ -1422,15 +1522,6 @@ export function handleFormattedTextClick(e) {
     }
 }
 
-// This should eventually be removed once everywhere else calls the action
-function searchForTerm(term) {
-    AppDispatcher.handleServerAction({
-        type: ActionTypes.RECEIVED_SEARCH_TERM,
-        term,
-        do_search: true
-    });
-}
-
 export function isEmptyObject(object) {
     if (!object) {
         return true;
@@ -1441,10 +1532,6 @@ export function isEmptyObject(object) {
     }
 
     return false;
-}
-
-export function updateWindowDimensions(component) {
-    component.setState({width: window.innerWidth, height: window.innerHeight});
 }
 
 export function removePrefixFromLocalStorage(prefix) {
@@ -1460,14 +1547,14 @@ export function removePrefixFromLocalStorage(prefix) {
     }
 }
 
-export function getEmailInterval(isEmailEnabled) {
+export function getEmailInterval(enableEmailBatching, isEmailEnabled) {
     const {
         INTERVAL_NEVER,
         INTERVAL_IMMEDIATE,
         INTERVAL_FIFTEEN_MINUTES,
         INTERVAL_HOUR,
         CATEGORY_NOTIFICATIONS,
-        EMAIL_INTERVAL
+        EMAIL_INTERVAL,
     } = Constants.Preferences;
 
     if (!isEmailEnabled) {
@@ -1479,7 +1566,7 @@ export function getEmailInterval(isEmailEnabled) {
 
     let emailInterval;
 
-    if (global.mm_config.EnableEmailBatching === 'true') {
+    if (enableEmailBatching) {
         // when email batching is enabled, the default interval is 15 minutes
         emailInterval = PreferenceStore.getInt(CATEGORY_NOTIFICATIONS, EMAIL_INTERVAL, INTERVAL_FIFTEEN_MINUTES);
 
@@ -1496,4 +1583,37 @@ export function getEmailInterval(isEmailEnabled) {
     }
 
     return emailInterval;
+}
+
+export function copyToClipboard(e, data) {
+    // creates a tiny temporary text area to copy text out of
+    // see https://stackoverflow.com/a/30810322/591374 for details
+    var textArea = document.createElement('textarea');
+    textArea.style.position = 'fixed';
+    textArea.style.top = 0;
+    textArea.style.left = 0;
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = 0;
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+    textArea.value = getSiteURL() + data.link;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+}
+
+export function moveCursorToEnd(e) {
+    const val = e.target.value;
+    if (val.length) {
+        e.target.value = '';
+        e.target.value = val;
+    }
+}
+
+export function isUserMediaAvailable() {
+    return navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 }

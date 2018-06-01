@@ -1,8 +1,7 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
-
 import {getPost} from 'mattermost-redux/selectors/entities/posts';
 import {get} from 'mattermost-redux/selectors/entities/preferences';
 import {getCurrentUser, getStatusForUserId, getUser} from 'mattermost-redux/selectors/entities/users';
@@ -27,7 +26,7 @@ function mapStateToProps(state, ownProps) {
         replyCount: detailedPost.replyCount,
         isCommentMention: detailedPost.isCommentMention,
         center: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.CHANNEL_DISPLAY_MODE, Preferences.CHANNEL_DISPLAY_MODE_DEFAULT) === Preferences.CHANNEL_DISPLAY_MODE_CENTERED,
-        compactDisplay: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT
+        compactDisplay: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT,
     };
 }
 

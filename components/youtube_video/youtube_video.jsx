@@ -1,11 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 
 import {getYoutubeVideoInfo} from 'actions/integration_actions.jsx';
-
 import * as Utils from 'utils/utils.jsx';
 
 const ytRegex = /(?:http|https):\/\/(?:www\.|m\.)?(?:(?:youtube\.com\/(?:(?:v\/)|(?:(?:watch|embed\/watch)(?:\/|.*v=))|(?:embed\/)|(?:user\/[^/]+\/u\/[0-9]\/)))|(?:youtu\.be\/))([^#&?]*)/;
@@ -16,7 +15,8 @@ export default class YoutubeVideo extends React.PureComponent {
         currentChannelId: PropTypes.string.isRequired,
         link: PropTypes.string.isRequired,
         show: PropTypes.bool.isRequired,
-        onLinkLoaded: PropTypes.func
+        googleDeveloperKey: PropTypes.string,
+        onLinkLoaded: PropTypes.func,
     }
 
     constructor(props) {
@@ -34,15 +34,15 @@ export default class YoutubeVideo extends React.PureComponent {
             loaded: false,
             failed: false,
             playing: false,
-            title: ''
+            title: '',
         };
     }
 
-    componentWillMount() {
+    UNSAFE_componentWillMount() { // eslint-disable-line camelcase
         this.updateStateFromProps(this.props);
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         this.updateStateFromProps(nextProps);
     }
 
@@ -64,21 +64,21 @@ export default class YoutubeVideo extends React.PureComponent {
 
         this.setState({
             videoId: match[1],
-            time: this.handleYoutubeTime(link)
+            time: this.handleYoutubeTime(link),
         });
     }
 
     handleYoutubeTime(link) {
-        const timeRegex = /[\\?&]t=([0-9]+h)?([0-9]+m)?([0-9]+s?)/;
+        const timeRegex = /[\\?&](t|start|time_continue)=([0-9]+h)?([0-9]+m)?([0-9]+s?)/;
 
         const time = link.match(timeRegex);
         if (!time || !time[0]) {
             return '';
         }
 
-        const hours = time[1] ? time[1].match(/([0-9]+)h/) : null;
-        const minutes = time[2] ? time[2].match(/([0-9]+)m/) : null;
-        const seconds = time[3] ? time[3].match(/([0-9]+)s?/) : null;
+        const hours = time[2] ? time[2].match(/([0-9]+)h/) : null;
+        const minutes = time[3] ? time[3].match(/([0-9]+)m/) : null;
+        const seconds = time[4] ? time[4].match(/([0-9]+)s?/) : null;
 
         let ticks = 0;
 
@@ -98,7 +98,7 @@ export default class YoutubeVideo extends React.PureComponent {
     }
 
     componentDidMount() {
-        const key = global.window.mm_config.GoogleDeveloperKey;
+        const key = this.props.googleDeveloperKey;
         if (key) {
             getYoutubeVideoInfo(key, this.state.videoId,
                 this.handleReceivedMetadata, this.handleMetadataError);
@@ -111,7 +111,7 @@ export default class YoutubeVideo extends React.PureComponent {
     loadWithoutKey() {
         this.setState({
             loaded: true,
-            thumb: 'https://i.ytimg.com/vi/' + this.state.videoId + '/hqdefault.jpg'
+            thumb: 'https://i.ytimg.com/vi/' + this.state.videoId + '/hqdefault.jpg',
         });
     }
 
@@ -119,7 +119,7 @@ export default class YoutubeVideo extends React.PureComponent {
         this.setState({
             failed: true,
             loaded: true,
-            title: Utils.localizeMessage('youtube_video.notFound', 'Video not found')
+            title: Utils.localizeMessage('youtube_video.notFound', 'Video not found'),
         });
     }
 
@@ -128,7 +128,7 @@ export default class YoutubeVideo extends React.PureComponent {
             this.setState({
                 failed: true,
                 loaded: true,
-                title: Utils.localizeMessage('youtube_video.notFound', 'Video not found')
+                title: Utils.localizeMessage('youtube_video.notFound', 'Video not found'),
             });
             return null;
         }
@@ -142,7 +142,7 @@ export default class YoutubeVideo extends React.PureComponent {
             loaded: true,
             receivedYoutubeData: true,
             title: metadata.title,
-            thumb
+            thumb,
         });
         return null;
     }

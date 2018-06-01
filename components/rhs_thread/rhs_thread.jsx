@@ -1,26 +1,26 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
+import {FormattedMessage} from 'react-intl';
 import PropTypes from 'prop-types';
 import React from 'react';
 import Scrollbars from 'react-custom-scrollbars';
+import {Posts} from 'mattermost-redux/constants';
 
 import PreferenceStore from 'stores/preference_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 import WebrtcStore from 'stores/webrtc_store.jsx';
-
 import Constants from 'utils/constants.jsx';
 import DelayedAction from 'utils/delayed_action.jsx';
 import * as Utils from 'utils/utils.jsx';
-
+import * as UserAgent from 'utils/user_agent.jsx';
 import CreateComment from 'components/create_comment';
 import DateSeparator from 'components/post_view/date_separator.jsx';
 import FloatingTimestamp from 'components/post_view/floating_timestamp.jsx';
-import Comment from 'components/rhs_comment.jsx';
-import RhsHeaderPost from 'components/rhs_header_post.jsx';
-import RootPost from 'components/rhs_root_post.jsx';
+import RhsComment from 'components/rhs_comment';
+import RhsHeaderPost from 'components/rhs_header_post';
+import RootPost from 'components/rhs_root_post';
 
 const Preferences = Constants.Preferences;
 
@@ -51,59 +51,38 @@ export function renderThumbVertical(props) {
 export default class RhsThread extends React.Component {
     static propTypes = {
         posts: PropTypes.arrayOf(PropTypes.object).isRequired,
+        channel: PropTypes.object.isRequired,
         selected: PropTypes.object.isRequired,
-        fromSearch: PropTypes.string,
-        fromFlaggedPosts: PropTypes.bool,
-        fromPinnedPosts: PropTypes.bool,
+        previousRhsState: PropTypes.string,
         isWebrtc: PropTypes.bool,
-        isMentionSearch: PropTypes.bool,
         currentUser: PropTypes.object.isRequired,
-        useMilitaryTime: PropTypes.bool.isRequired,
-        toggleSize: PropTypes.func,
-        shrink: PropTypes.func,
         previewCollapsed: PropTypes.string.isRequired,
         previewEnabled: PropTypes.bool.isRequired,
         postsEmbedVisibleObj: PropTypes.object,
         actions: PropTypes.shape({
-            removePost: PropTypes.func.isRequired
-        }).isRequired
-    }
-
-    static defaultProps = {
-        fromSearch: '',
-        isMentionSearch: false
+            removePost: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
         super(props);
 
-        this.mounted = false;
-
-        this.onUserChange = this.onUserChange.bind(this);
-        this.forceUpdateInfo = this.forceUpdateInfo.bind(this);
-        this.onPreferenceChange = this.onPreferenceChange.bind(this);
-        this.onStatusChange = this.onStatusChange.bind(this);
-        this.onBusy = this.onBusy.bind(this);
-        this.handleResize = this.handleResize.bind(this);
-        this.handleScroll = this.handleScroll.bind(this);
-        this.handleScrollStop = this.handleScrollStop.bind(this);
         this.scrollStopAction = new DelayedAction(this.handleScrollStop);
 
         const openTime = (new Date()).getTime();
-        const state = {};
-        state.windowWidth = Utils.windowWidth();
-        state.windowHeight = Utils.windowHeight();
-        state.profiles = JSON.parse(JSON.stringify(UserStore.getProfiles()));
-        state.compactDisplay = PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT;
-        state.flaggedPosts = PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST);
-        state.statuses = Object.assign({}, UserStore.getStatuses());
-        state.isBusy = WebrtcStore.isBusy();
 
         this.state = {
-            ...state,
+            windowWidth: Utils.windowWidth(),
+            windowHeight: Utils.windowHeight(),
+            profiles: JSON.parse(JSON.stringify(UserStore.getProfiles())),
+            compactDisplay: PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT,
+            flaggedPosts: PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST),
+            statuses: Object.assign({}, UserStore.getStatuses()),
+            previewsCollapsed: PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLLAPSE_DISPLAY, 'false'),
+            isBusy: WebrtcStore.isBusy(),
             isScrolling: false,
             topRhsPostCreateAt: 0,
-            openTime
+            openTime,
         };
     }
 
@@ -115,8 +94,6 @@ export default class RhsThread extends React.Component {
 
         this.scrollToBottom();
         window.addEventListener('resize', this.handleResize);
-
-        this.mounted = true;
     }
 
     componentWillUnmount() {
@@ -126,8 +103,18 @@ export default class RhsThread extends React.Component {
         WebrtcStore.removeBusyListener(this.onBusy);
 
         window.removeEventListener('resize', this.handleResize);
+    }
 
-        this.mounted = false;
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
+        if (!this.props.selected || !nextProps.selected) {
+            return;
+        }
+
+        if (this.props.selected.id !== nextProps.selected.id) {
+            this.setState({
+                openTime: (new Date()).getTime(),
+            });
+        }
     }
 
     componentDidUpdate(prevProps) {
@@ -159,10 +146,6 @@ export default class RhsThread extends React.Component {
         }
 
         if (nextState.compactDisplay !== this.state.compactDisplay) {
-            return true;
-        }
-
-        if (nextProps.useMilitaryTime !== this.props.useMilitaryTime) {
             return true;
         }
 
@@ -200,52 +183,33 @@ export default class RhsThread extends React.Component {
         return false;
     }
 
-    forceUpdateInfo() {
-        if (this.state.postList) {
-            for (var postId in this.state.postList.posts) {
-                if (this.refs[postId]) {
-                    this.refs[postId].forceUpdate();
-                }
-            }
-        }
-    }
-
-    handleResize() {
+    handleResize = () => {
         this.setState({
             windowWidth: Utils.windowWidth(),
-            windowHeight: Utils.windowHeight()
+            windowHeight: Utils.windowHeight(),
         });
-    }
 
-    componentWillReceiveProps(nextProps) {
-        if (!this.props.selected || !nextProps.selected) {
-            return;
-        }
-
-        if (this.props.selected.id !== nextProps.selected.id) {
-            this.setState({
-                openTime: (new Date()).getTime()
-            });
+        if (UserAgent.isMobile() && document.activeElement.id === 'reply_textbox') {
+            this.scrollToBottom();
         }
     }
 
-    onPreferenceChange() {
+    onPreferenceChange = () => {
         this.setState({
             compactDisplay: PreferenceStore.get(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT,
-            flaggedPosts: PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST)
+            flaggedPosts: PreferenceStore.getCategory(Constants.Preferences.CATEGORY_FLAGGED_POST),
         });
-        this.forceUpdateInfo();
     }
 
-    onStatusChange() {
+    onStatusChange = () => {
         this.setState({statuses: Object.assign({}, UserStore.getStatuses())});
     }
 
-    onBusy(isBusy) {
+    onBusy = (isBusy) => {
         this.setState({isBusy});
     }
 
-    filterPosts(posts, selected, openTime) {
+    filterPosts = (posts, selected, openTime) => {
         const postsArray = [];
 
         posts.forEach((cpost) => {
@@ -262,18 +226,18 @@ export default class RhsThread extends React.Component {
         return postsArray;
     }
 
-    onUserChange() {
+    onUserChange = () => {
         const profiles = JSON.parse(JSON.stringify(UserStore.getProfiles()));
         this.setState({profiles});
     }
 
-    scrollToBottom() {
+    scrollToBottom = () => {
         if ($('.post-right__scroll')[0]) {
             $('.post-right__scroll').parent().scrollTop($('.post-right__scroll')[0].scrollHeight);
         }
     }
 
-    updateFloatingTimestamp() {
+    updateFloatingTimestamp = () => {
         // skip this in non-mobile view since that's when the timestamp is visible
         if (!Utils.isMobile()) {
             return;
@@ -295,27 +259,27 @@ export default class RhsThread extends React.Component {
 
             if (topRhsPostCreateAt !== this.state.topRhsPostCreateAt) {
                 this.setState({
-                    topRhsPostCreateAt
+                    topRhsPostCreateAt,
                 });
             }
         }
     }
 
-    handleScroll() {
+    handleScroll = () => {
         this.updateFloatingTimestamp();
 
         if (!this.state.isScrolling) {
             this.setState({
-                isScrolling: true
+                isScrolling: true,
             });
         }
 
         this.scrollStopAction.fireAfter(Constants.SCROLL_DELAY);
     }
 
-    handleScrollStop() {
+    handleScrollStop = () => {
         this.setState({
-            isScrolling: false
+            isScrolling: false,
         });
     }
 
@@ -353,7 +317,7 @@ export default class RhsThread extends React.Component {
 
         let createAt = selected.create_at;
         if (!createAt) {
-            createAt = this.props.posts[0].create_at;
+            createAt = this.props.posts[this.props.posts.length - 1].create_at;
         }
         const rootPostDay = Utils.getDateForUnixTicks(createAt);
         let previousPostDay = rootPostDay;
@@ -392,39 +356,56 @@ export default class RhsThread extends React.Component {
             const keyPrefix = comPost.id ? comPost.id : comPost.pending_post_id;
             const reverseCount = postsLength - i - 1;
             commentsLists.push(
-                <div key={keyPrefix + 'commentKey'}>
-                    <Comment
-                        ref={comPost.id}
-                        post={comPost}
-                        lastPostCount={(reverseCount >= 0 && reverseCount < Constants.TEST_ID_COUNT) ? reverseCount : -1}
-                        user={p}
-                        currentUser={this.props.currentUser}
-                        compactDisplay={this.state.compactDisplay}
-                        useMilitaryTime={this.props.useMilitaryTime}
-                        isFlagged={isFlagged}
-                        status={status}
-                        isBusy={this.state.isBusy}
-                        removePost={this.props.actions.removePost}
-                        previewCollapsed={this.props.previewCollapsed}
-                        previewEnabled={this.props.previewEnabled}
-                        isEmbedVisible={this.props.postsEmbedVisibleObj[comPost.id]}
-                    />
-                </div>
+                <RhsComment
+                    key={keyPrefix + 'commentKey'}
+                    ref={comPost.id}
+                    post={comPost}
+                    teamId={this.props.channel.team_id}
+                    lastPostCount={(reverseCount >= 0 && reverseCount < Constants.TEST_ID_COUNT) ? reverseCount : -1}
+                    user={p}
+                    currentUser={this.props.currentUser}
+                    compactDisplay={this.state.compactDisplay}
+                    isFlagged={isFlagged}
+                    status={status}
+                    isBusy={this.state.isBusy}
+                    removePost={this.props.actions.removePost}
+                    previewCollapsed={this.props.previewCollapsed}
+                    previewEnabled={this.props.previewEnabled}
+                    isEmbedVisible={this.props.postsEmbedVisibleObj[comPost.id]}
+                />
             );
         }
 
         let createComment;
-        if (selected.type !== Constants.PostTypes.FAKE_PARENT_DELETED) {
+        const isFakeDeletedPost = selected.type === Constants.PostTypes.FAKE_PARENT_DELETED;
+        if (!isFakeDeletedPost) {
             createComment = (
                 <div className='post-create__container'>
                     <CreateComment
                         channelId={selected.channel_id}
                         rootId={selected.id}
+                        rootDeleted={selected.state === Posts.POST_DELETED}
                         latestPostId={postsLength > 0 ? postsArray[postsLength - 1].id : selected.id}
                         getSidebarBody={this.getSidebarBody}
                     />
                 </div>
             );
+        }
+
+        if (this.props.channel.type === Constants.DM_CHANNEL) {
+            const teammate = Utils.getDirectTeammate(this.props.channel.id);
+            if (teammate && teammate.delete_at) {
+                createComment = (
+                    <div
+                        className='post-create-message'
+                    >
+                        <FormattedMessage
+                            id='create_post.deactivated'
+                            defaultMessage='You are viewing an archived channel with a deactivated user.'
+                        />
+                    </div>
+                );
+            }
         }
 
         return (
@@ -439,13 +420,8 @@ export default class RhsThread extends React.Component {
                     isRhsPost={true}
                 />
                 <RhsHeaderPost
-                    fromFlaggedPosts={this.props.fromFlaggedPosts}
-                    fromSearch={this.props.fromSearch}
-                    fromPinnedPosts={this.props.fromPinnedPosts}
+                    previousRhsState={this.props.previousRhsState}
                     isWebrtc={this.props.isWebrtc}
-                    isMentionSearch={this.props.isMentionSearch}
-                    toggleSize={this.props.toggleSize}
-                    shrink={this.props.shrink}
                 />
                 <Scrollbars
                     autoHide={true}
@@ -457,17 +433,15 @@ export default class RhsThread extends React.Component {
                     onScroll={this.handleScroll}
                 >
                     <div className='post-right__scroll'>
-                        <DateSeparator
-                            date={rootPostDay}
-                        />
+                        {!isFakeDeletedPost && <DateSeparator date={rootPostDay}/>}
                         <RootPost
                             ref={selected.id}
                             post={selected}
                             commentCount={postsLength}
                             user={profile}
+                            teamId={this.props.channel.team_id}
                             currentUser={this.props.currentUser}
                             compactDisplay={this.state.compactDisplay}
-                            useMilitaryTime={this.props.useMilitaryTime}
                             isFlagged={isRootFlagged}
                             status={rootStatus}
                             previewCollapsed={this.props.previewCollapsed}
@@ -475,6 +449,7 @@ export default class RhsThread extends React.Component {
                             isBusy={this.state.isBusy}
                             isEmbedVisible={this.props.postsEmbedVisibleObj[selected.id]}
                         />
+                        {isFakeDeletedPost && <DateSeparator date={rootPostDay}/>}
                         <div
                             ref='rhspostlist'
                             className='post-right-comments-container'

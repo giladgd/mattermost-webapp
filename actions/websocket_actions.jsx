@@ -1,19 +1,21 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
-import {browserHistory} from 'react-router';
 import {batchActions} from 'redux-batched-actions';
-
-import {ChannelTypes, EmojiTypes, PostTypes, TeamTypes, UserTypes} from 'mattermost-redux/action_types';
+import {ChannelTypes, EmojiTypes, PostTypes, TeamTypes, UserTypes, RoleTypes, GeneralTypes, AdminTypes} from 'mattermost-redux/action_types';
+import {WebsocketEvents, General} from 'mattermost-redux/constants';
 import {getChannelAndMyMember, getChannelStats, viewChannel} from 'mattermost-redux/actions/channels';
 import {setServerVersion} from 'mattermost-redux/actions/general';
-import {getPosts, getProfilesAndStatusesForPosts} from 'mattermost-redux/actions/posts';
+import {getPosts, getProfilesAndStatusesForPosts, getCustomEmojiForReaction} from 'mattermost-redux/actions/posts';
 import * as TeamActions from 'mattermost-redux/actions/teams';
+import {getMe, getStatusesByIds, getProfilesByIds} from 'mattermost-redux/actions/users';
 import {Client4} from 'mattermost-redux/client';
-import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
+import {getCurrentUser, getCurrentUserId, getStatusForUserId} from 'mattermost-redux/selectors/entities/users';
+import {getMyTeams} from 'mattermost-redux/selectors/entities/teams';
+import {getConfig} from 'mattermost-redux/selectors/entities/general';
 
+import {browserHistory} from 'utils/browser_history';
 import {loadChannelsForCurrentUser} from 'actions/channel_actions.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
 import {handleNewPost} from 'actions/post_actions.jsx';
@@ -27,11 +29,10 @@ import PreferenceStore from 'stores/preference_store.jsx';
 import store from 'stores/redux_store.jsx';
 import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import WebSocketClient from 'client/web_websocket_client.jsx';
 import {loadPlugin, loadPluginsIfNecessary, removePlugin} from 'plugins';
-
 import {ActionTypes, Constants, ErrorBarTypes, Preferences, SocketEvents, UserStatuses} from 'utils/constants.jsx';
+import {fromAutoResponder} from 'utils/post_utils';
 import {getSiteURL} from 'utils/url.jsx';
 
 import * as WebrtcActions from './webrtc_actions.jsx';
@@ -47,21 +48,27 @@ export function initialize() {
         return;
     }
 
-    let connUrl = getSiteURL();
-
-    // replace the protocol with a websocket one
-    if (connUrl.startsWith('https:')) {
-        connUrl = connUrl.replace(/^https:/, 'wss:');
+    const config = getConfig(getState());
+    let connUrl = '';
+    if (config.WebsocketURL) {
+        connUrl = config.WebsocketURL;
     } else {
-        connUrl = connUrl.replace(/^http:/, 'ws:');
-    }
+        connUrl = getSiteURL();
 
-    // append a port number if one isn't already specified
-    if (!(/:\d+$/).test(connUrl)) {
-        if (connUrl.startsWith('wss:')) {
-            connUrl += ':' + global.window.mm_config.WebsocketSecurePort;
+        // replace the protocol with a websocket one
+        if (connUrl.startsWith('https:')) {
+            connUrl = connUrl.replace(/^https:/, 'wss:');
         } else {
-            connUrl += ':' + global.window.mm_config.WebsocketPort;
+            connUrl = connUrl.replace(/^http:/, 'ws:');
+        }
+
+        // append a port number if one isn't already specified
+        if (!(/:\d+$/).test(connUrl)) {
+            if (connUrl.startsWith('wss:')) {
+                connUrl += ':' + config.WebsocketSecurePort;
+            } else {
+                connUrl += ':' + config.WebsocketPort;
+            }
         }
     }
 
@@ -90,11 +97,16 @@ export function reconnect(includeWebSocket = true) {
     }
 
     loadPluginsIfNecessary();
-    loadChannelsForCurrentUser();
-    getPosts(ChannelStore.getCurrentId())(dispatch, getState);
-    StatusActions.loadStatusesForChannelAndSidebar();
-    TeamActions.getMyTeamUnreads()(dispatch, getState);
 
+    const currentTeamId = getState().entities.teams.currentTeamId;
+    if (currentTeamId) {
+        loadChannelsForCurrentUser();
+        getPosts(ChannelStore.getCurrentId())(dispatch, getState);
+        StatusActions.loadStatusesForChannelAndSidebar();
+        TeamActions.getMyTeamUnreads()(dispatch, getState);
+    }
+
+    ErrorStore.setConnectionErrorCount(0);
     ErrorStore.clearLastError();
     ErrorStore.emitChange();
 }
@@ -156,6 +168,10 @@ function handleEvent(msg) {
         handleUpdateTeamEvent(msg);
         break;
 
+    case SocketEvents.DELETE_TEAM:
+        handleDeleteTeamEvent(msg);
+        break;
+
     case SocketEvents.ADDED_TO_TEAM:
         handleTeamAddedEvent(msg);
         break;
@@ -172,8 +188,20 @@ function handleEvent(msg) {
         handleUserUpdatedEvent(msg);
         break;
 
+    case SocketEvents.ROLE_ADDED:
+        handleRoleAddedEvent(msg, dispatch, getState);
+        break;
+
+    case SocketEvents.ROLE_REMOVED:
+        handleRoleRemovedEvent(msg, dispatch, getState);
+        break;
+
     case SocketEvents.MEMBERROLE_UPDATED:
         handleUpdateMemberRoleEvent(msg);
+        break;
+
+    case SocketEvents.ROLE_UPDATED:
+        handleRoleUpdatedEvent(msg, dispatch, getState);
         break;
 
     case SocketEvents.CHANNEL_CREATED:
@@ -186,6 +214,10 @@ function handleEvent(msg) {
 
     case SocketEvents.CHANNEL_UPDATED:
         handleChannelUpdatedEvent(msg);
+        break;
+
+    case SocketEvents.CHANNEL_MEMBER_UPDATED:
+        handleChannelMemberUpdatedEvent(msg);
         break;
 
     case SocketEvents.DIRECT_ADDED:
@@ -248,6 +280,18 @@ function handleEvent(msg) {
         handleUserRoleUpdated(msg);
         break;
 
+    case SocketEvents.CONFIG_CHANGED:
+        handleConfigChanged(msg);
+        break;
+
+    case SocketEvents.LICENSE_CHANGED:
+        handleLicenseChanged(msg);
+        break;
+
+    case SocketEvents.PLUGIN_STATUSES_CHANGED:
+        handlePluginStatusesChangedEvent(msg);
+        break;
+
     default:
     }
 }
@@ -257,13 +301,18 @@ function handleChannelUpdatedEvent(msg) {
     dispatch({type: ChannelTypes.RECEIVED_CHANNEL, data: channel});
 }
 
+function handleChannelMemberUpdatedEvent(msg) {
+    const channelMember = JSON.parse(msg.data.channelMember);
+    dispatch({type: ChannelTypes.RECEIVED_MY_CHANNEL_MEMBER, data: channelMember});
+}
+
 function handleNewPostEvent(msg) {
     const post = JSON.parse(msg.data.post);
     handleNewPost(post, msg);
 
     getProfilesAndStatusesForPosts([post], dispatch, getState);
 
-    if (post.user_id !== UserStore.getCurrentId()) {
+    if (post.user_id !== UserStore.getCurrentId() && !fromAutoResponder(post)) {
         UserStore.setStatus(post.user_id, UserStatuses.ONLINE);
     }
 }
@@ -276,10 +325,13 @@ function handlePostEditEvent(msg) {
         data: {
             order: [],
             posts: {
-                [post.id]: post
-            }
-        }
+                [post.id]: post,
+            },
+        },
+        channelId: post.channel_id,
     });
+
+    getProfilesAndStatusesForPosts([post], dispatch, getState);
 
     // Update channel state
     if (ChannelStore.getCurrentId() === msg.broadcast.channel_id) {
@@ -291,7 +343,7 @@ function handlePostEditEvent(msg) {
     // Needed for search store
     AppDispatcher.handleViewAction({
         type: Constants.ActionTypes.POST_UPDATED,
-        post
+        post,
     });
 }
 
@@ -302,7 +354,7 @@ function handlePostDeleteEvent(msg) {
     // Needed for search store
     AppDispatcher.handleViewAction({
         type: Constants.ActionTypes.POST_DELETED,
-        post
+        post,
     });
 }
 
@@ -329,13 +381,12 @@ function handleLeaveTeamEvent(msg) {
         dispatch(batchActions([
             {
                 type: UserTypes.RECEIVED_PROFILE_NOT_IN_TEAM,
-                data: {user_id: msg.data.user_id},
-                id: msg.data.team_id
+                data: {id: msg.data.team_id, user_id: msg.data.user_id},
             },
             {
                 type: TeamTypes.REMOVE_MEMBER_FROM_TEAM,
-                data: {team_id: msg.data.team_id, user_id: msg.data.user_id}
-            }
+                data: {team_id: msg.data.team_id, user_id: msg.data.user_id},
+            },
         ]));
     } else {
         UserStore.removeProfileFromTeam(msg.data.team_id, msg.data.user_id);
@@ -345,6 +396,60 @@ function handleLeaveTeamEvent(msg) {
 
 function handleUpdateTeamEvent(msg) {
     TeamStore.updateTeam(msg.data.team);
+}
+
+function handleDeleteTeamEvent(msg) {
+    const deletedTeam = JSON.parse(msg.data.team);
+    const state = store.getState();
+    const {teams} = state.entities.teams;
+    if (
+        deletedTeam &&
+        teams &&
+        teams[deletedTeam.id] &&
+        teams[deletedTeam.id].delete_at === 0
+    ) {
+        const {currentUserId} = state.entities.users;
+        const {currentTeamId, myMembers} = state.entities.teams;
+        const teamMembers = Object.values(myMembers);
+        const teamMember = teamMembers.find((m) => m.user_id === currentUserId && m.team_id === currentTeamId);
+
+        let newTeamId = '';
+        if (
+            deletedTeam &&
+            teamMember &&
+            deletedTeam.id === teamMember.team_id
+        ) {
+            const myTeams = {};
+            getMyTeams(state).forEach((t) => {
+                myTeams[t.id] = t;
+            });
+
+            for (let i = 0; i < teamMembers.length; i++) {
+                const memberTeamId = teamMembers[i].team_id;
+                if (
+                    myTeams &&
+                    myTeams[memberTeamId] &&
+                    myTeams[memberTeamId].delete_at === 0 &&
+                    deletedTeam.id !== memberTeamId
+                ) {
+                    newTeamId = memberTeamId;
+                    break;
+                }
+            }
+        }
+
+        dispatch(batchActions([
+            {type: TeamTypes.RECEIVED_TEAM_DELETED, data: {id: deletedTeam.id}},
+            {type: TeamTypes.UPDATED_TEAM, data: deletedTeam},
+        ]));
+
+        if (newTeamId) {
+            dispatch({type: TeamTypes.SELECT_TEAM, data: newTeamId});
+            browserHistory.push(`${TeamStore.getCurrentTeamUrl()}/channels/${Constants.DEFAULT_CHANNEL}`);
+        } else {
+            browserHistory.push('/');
+        }
+    }
 }
 
 function handleUpdateMemberRoleEvent(msg) {
@@ -361,6 +466,10 @@ function handleDirectAddedEvent(msg) {
 function handleUserAddedEvent(msg) {
     if (ChannelStore.getCurrentId() === msg.broadcast.channel_id) {
         getChannelStats(ChannelStore.getCurrentId())(dispatch, getState);
+        dispatch({
+            type: UserTypes.RECEIVED_PROFILE_IN_CHANNEL,
+            data: {id: msg.broadcast.channel_id, user_id: msg.data.user_id},
+        });
     }
 
     if (TeamStore.getCurrentId() === msg.data.team_id && UserStore.getCurrentId() === msg.data.user_id) {
@@ -372,32 +481,32 @@ function handleUserRemovedEvent(msg) {
     if (UserStore.getCurrentId() === msg.broadcast.user_id) {
         loadChannelsForCurrentUser();
 
-        if (msg.data.remover_id !== msg.broadcast.user_id &&
-                msg.data.channel_id === ChannelStore.getCurrentId() &&
-                $('#removed_from_channel').length > 0) {
-            var sentState = {};
-            sentState.channelName = ChannelStore.getCurrent().display_name;
-            sentState.remover = UserStore.getProfile(msg.data.remover_id).username;
+        if (msg.data.channel_id === ChannelStore.getCurrentId()) {
+            if (msg.data.remover_id !== msg.broadcast.user_id &&
+                    $('#removed_from_channel').length > 0) {
+                var sentState = {};
+                sentState.channelName = ChannelStore.getCurrent().display_name;
+                sentState.remover = UserStore.getProfile(msg.data.remover_id).username;
 
-            BrowserStore.setItem('channel-removed-state', sentState);
-            $('#removed_from_channel').modal('show');
+                BrowserStore.setItem('channel-removed-state', sentState);
+                $('#removed_from_channel').modal('show');
+            }
+
+            GlobalActions.emitCloseRightHandSide();
+
+            const townsquare = ChannelStore.getByName(Constants.DEFAULT_CHANNEL);
+            browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + townsquare.name);
         }
-
-        GlobalActions.toggleSideBarAction(false);
-
-        const townsquare = ChannelStore.getByName('town-square');
-        browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + townsquare.name);
 
         dispatch({
             type: ChannelTypes.LEAVE_CHANNEL,
-            data: {id: msg.data.channel_id, user_id: msg.broadcast.user_id}
+            data: {id: msg.data.channel_id, user_id: msg.broadcast.user_id},
         });
     } else if (ChannelStore.getCurrentId() === msg.broadcast.channel_id) {
         getChannelStats(ChannelStore.getCurrentId())(dispatch, getState);
         dispatch({
             type: UserTypes.RECEIVED_PROFILE_NOT_IN_CHANNEL,
-            data: {user_id: msg.data.user_id},
-            id: msg.broadcast.channel_id
+            data: {id: msg.broadcast.channel_id, user_id: msg.data.user_id},
         });
     }
 }
@@ -407,16 +516,41 @@ function handleUserUpdatedEvent(msg) {
     const user = msg.data.user;
 
     if (currentUser.id === user.id) {
-        dispatch({
-            type: UserTypes.RECEIVED_ME,
-            data: {
-                ...currentUser,
-                last_picture_update: user.last_picture_update
-            }
-        });
+        if (user.update_at > currentUser.update_at) {
+            // Need to request me to make sure we don't override with sanitized fields from the
+            // websocket event
+            getMe()(dispatch, getState);
+        }
     } else {
         UserStore.saveProfile(user);
     }
+}
+
+function handleRoleAddedEvent(msg) {
+    const role = JSON.parse(msg.data.role);
+
+    dispatch({
+        type: RoleTypes.RECEIVED_ROLE,
+        data: role,
+    });
+}
+
+function handleRoleRemovedEvent(msg) {
+    const role = JSON.parse(msg.data.role);
+
+    dispatch({
+        type: RoleTypes.ROLE_DELETED,
+        data: role,
+    });
+}
+
+function handleRoleUpdatedEvent(msg) {
+    const role = JSON.parse(msg.data.role);
+
+    dispatch({
+        type: RoleTypes.RECEIVED_ROLE,
+        data: role,
+    });
 }
 
 function handleChannelCreatedEvent(msg) {
@@ -454,10 +588,37 @@ function handlePreferencesDeletedEvent(msg) {
 }
 
 function handleUserTypingEvent(msg) {
-    GlobalActions.emitRemoteUserTypingEvent(msg.broadcast.channel_id, msg.data.user_id, msg.data.parent_id);
+    const state = getState();
+    const config = getConfig(state);
+    const currentUserId = getCurrentUserId(state);
+    const currentUser = getCurrentUser(state);
+    const userId = msg.data.user_id;
 
-    if (msg.data.user_id !== UserStore.getCurrentId()) {
-        UserStore.setStatus(msg.data.user_id, UserStatuses.ONLINE);
+    const data = {
+        id: msg.broadcast.channel_id + msg.data.parent_id,
+        userId,
+        now: Date.now(),
+    };
+
+    dispatch({
+        type: WebsocketEvents.TYPING,
+        data,
+    }, getState);
+
+    setTimeout(() => {
+        dispatch({
+            type: WebsocketEvents.STOP_TYPING,
+            data,
+        }, getState);
+    }, parseInt(config.TimeBetweenUserTypingUpdatesMilliseconds, 10));
+
+    if (!currentUser && userId !== currentUserId) {
+        getProfilesByIds([userId])(dispatch, getState);
+    }
+
+    const status = getStatusForUserId(state, userId);
+    if (status !== General.ONLINE) {
+        getStatusesByIds([userId])(dispatch, getState);
     }
 }
 
@@ -477,9 +638,11 @@ function handleWebrtc(msg) {
 function handleReactionAddedEvent(msg) {
     const reaction = JSON.parse(msg.data.reaction);
 
+    dispatch(getCustomEmojiForReaction(reaction.emoji_name));
+
     dispatch({
         type: PostTypes.RECEIVED_REACTION,
-        data: reaction
+        data: reaction,
     });
 }
 
@@ -488,7 +651,7 @@ function handleAddEmoji(msg) {
 
     dispatch({
         type: EmojiTypes.RECEIVED_CUSTOM_EMOJI,
-        data
+        data,
     });
 }
 
@@ -497,13 +660,13 @@ function handleReactionRemovedEvent(msg) {
 
     dispatch({
         type: PostTypes.REACTION_DELETED,
-        data: reaction
+        data: reaction,
     });
 }
 
 function handleChannelViewedEvent(msg) {
 // Useful for when multiple devices have the app open to different channels
-    if (ChannelStore.getCurrentId() !== msg.data.channel_id &&
+    if ((!window.isActive || ChannelStore.getCurrentId() !== msg.data.channel_id) &&
         UserStore.getCurrentId() === msg.broadcast.user_id) {
         // Mark previous and next channel as read
         ChannelStore.resetCounts([msg.data.channel_id]);
@@ -535,4 +698,16 @@ function handleUserRoleUpdated(msg) {
             GlobalActions.redirectUserToDefaultTeam();
         }
     }
+}
+
+function handleConfigChanged(msg) {
+    store.dispatch({type: GeneralTypes.CLIENT_CONFIG_RECEIVED, data: msg.data.config});
+}
+
+function handleLicenseChanged(msg) {
+    store.dispatch({type: GeneralTypes.CLIENT_LICENSE_RECEIVED, data: msg.data.license});
+}
+
+function handlePluginStatusesChangedEvent(msg) {
+    store.dispatch({type: AdminTypes.RECEIVED_PLUGIN_STATUSES, data: msg.data.plugin_statuses});
 }

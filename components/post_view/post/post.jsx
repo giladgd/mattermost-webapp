@@ -1,22 +1,18 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
-
 import {Posts} from 'mattermost-redux/constants';
 
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
-
-import Constants from 'utils/constants.jsx';
+import {ActionTypes} from 'utils/constants.jsx';
 import * as PostUtils from 'utils/post_utils.jsx';
 import * as Utils from 'utils/utils.jsx';
-
 import PostBody from 'components/post_view/post_body';
 import PostHeader from 'components/post_view/post_header';
 import ProfilePicture from 'components/profile_picture.jsx';
-
-const ActionTypes = Constants.ActionTypes;
+import MattermostLogo from 'components/svg/mattermost_logo';
 
 export default class Post extends React.PureComponent {
     static propTypes = {
@@ -94,15 +90,21 @@ export default class Post extends React.PureComponent {
         /**
          * Function to get the post list HTML element
          */
-        getPostList: PropTypes.func.isRequired
+        getPostList: PropTypes.func.isRequired,
     }
 
     constructor(props) {
         super(props);
 
         this.state = {
-            dropdownOpened: false
+            dropdownOpened: false,
+            hover: false,
+            sameRoot: this.hasSameRoot(props),
         };
+    }
+
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
+        this.setState({sameRoot: this.hasSameRoot(nextProps)});
     }
 
     handleCommentClick = (e) => {
@@ -116,27 +118,31 @@ export default class Post extends React.PureComponent {
         AppDispatcher.handleServerAction({
             type: ActionTypes.RECEIVED_POST_SELECTED,
             postId: Utils.getRootId(post),
-            channelId: post.channel_id
-        });
-
-        AppDispatcher.handleServerAction({
-            type: ActionTypes.RECEIVED_SEARCH,
-            results: null
+            channelId: post.channel_id,
         });
     }
 
     handleDropdownOpened = (opened) => {
         this.setState({
-            dropdownOpened: opened
+            dropdownOpened: opened,
         });
     }
 
-    forceUpdateInfo = () => {
-        this.refs.info.forceUpdate();
-        this.refs.header.forceUpdate();
+    hasSameRoot = (props) => {
+        const post = props.post;
+
+        if (props.isFirstReply) {
+            return false;
+        } else if (!post.root_id && !props.previousPostIsComment && props.consecutivePostByUser) {
+            return true;
+        } else if (post.root_id) {
+            return true;
+        }
+
+        return false;
     }
 
-    getClassName = (post, isSystemMessage, fromWebhook) => {
+    getClassName = (post, isSystemMessage, fromWebhook, fromAutoResponder) => {
         let className = 'post';
 
         if (post.failed || post.state === Posts.POST_DELETED) {
@@ -148,11 +154,7 @@ export default class Post extends React.PureComponent {
         }
 
         let rootUser = '';
-        if (this.props.isFirstReply) {
-            rootUser = 'other--root';
-        } else if (!post.root_id && !this.props.previousPostIsComment && this.props.consecutivePostByUser) {
-            rootUser = 'same--root';
-        } else if (post.root_id) {
+        if (this.state.sameRoot) {
             rootUser = 'same--root';
         } else {
             rootUser = 'other--root';
@@ -185,6 +187,10 @@ export default class Post extends React.PureComponent {
             rootUser = '';
         }
 
+        if (fromAutoResponder) {
+            postType = 'post--comment';
+        }
+
         if (this.props.compactDisplay) {
             className += ' post--compact';
         }
@@ -200,11 +206,23 @@ export default class Post extends React.PureComponent {
         return className + ' ' + sameUserClass + ' ' + rootUser + ' ' + postType + ' ' + currentUserCss;
     }
 
+    getRef = (node) => {
+        this.domNode = node;
+    }
+
+    setHover = () => {
+        this.setState({hover: true});
+    }
+
+    unsetHover = () => {
+        this.setState({hover: false});
+    }
+
     render() {
         const post = this.props.post || {};
-        const mattermostLogo = Constants.MATTERMOST_ICON_SVG;
 
         const isSystemMessage = PostUtils.isSystemMessage(post);
+        const fromAutoResponder = PostUtils.fromAutoResponder(post);
         const fromWebhook = post && post.props && post.props.from_webhook === 'true';
 
         let status = this.props.status;
@@ -212,94 +230,104 @@ export default class Post extends React.PureComponent {
             status = null;
         }
 
-        let profilePic = (
-            <ProfilePicture
-                src={PostUtils.getProfilePicSrcForPost(post, this.props.user)}
-                status={status}
-                user={this.props.user}
-                isBusy={this.props.isBusy}
-                hasMention={true}
-            />
-        );
-
-        if (fromWebhook) {
+        let profilePic;
+        const hideProfilePicture = this.state.sameRoot && this.props.consecutivePostByUser && (!post.root_id && this.props.replyCount === 0);
+        if (!hideProfilePicture) {
             profilePic = (
                 <ProfilePicture
                     src={PostUtils.getProfilePicSrcForPost(post, this.props.user)}
+                    status={status}
+                    user={this.props.user}
+                    isBusy={this.props.isBusy}
+                    hasMention={true}
                 />
             );
-        } else if (PostUtils.isSystemMessage(post)) {
-            profilePic = (
-                <span
-                    className='icon'
-                    dangerouslySetInnerHTML={{__html: mattermostLogo}}
-                />
-            );
+
+            if (fromWebhook) {
+                profilePic = (
+                    <ProfilePicture
+                        src={PostUtils.getProfilePicSrcForPost(post, this.props.user)}
+                    />
+                );
+            } else if (fromAutoResponder) {
+                profilePic = (
+                    <span className='auto-responder'>
+                        <ProfilePicture
+                            src={PostUtils.getProfilePicSrcForPost(post, this.props.user)}
+                            user={this.props.user}
+                            hasMention={true}
+                        />
+                    </span>
+                );
+            } else if (isSystemMessage) {
+                profilePic = (
+                    <MattermostLogo className='icon'/>
+                );
+            }
+
+            if (this.props.compactDisplay) {
+                if (fromWebhook) {
+                    profilePic = (
+                        <ProfilePicture
+                            src=''
+                            status={status}
+                            isBusy={this.props.isBusy}
+                            user={this.props.user}
+                        />
+                    );
+                } else {
+                    profilePic = (
+                        <ProfilePicture
+                            src=''
+                            status={status}
+                        />
+                    );
+                }
+            }
         }
+
+        const profilePicContainer = <div className='post__img'>{profilePic}</div>;
 
         let centerClass = '';
         if (this.props.center) {
             centerClass = 'center';
         }
 
-        if (this.props.compactDisplay) {
-            if (fromWebhook) {
-                profilePic = (
-                    <ProfilePicture
-                        src=''
-                        status={status}
-                        isBusy={this.props.isBusy}
-                        user={this.props.user}
-                    />
-                );
-            } else {
-                profilePic = (
-                    <ProfilePicture
-                        src=''
-                        status={status}
-                    />
-                );
-            }
-        }
-
-        const profilePicContainer = (<div className='post__img'>{profilePic}</div>);
-
         return (
             <div
-                ref={(div) => {
-                    this.domNode = div;
-                }}
+                ref={this.getRef}
+                id={'post_' + post.id}
+                className={this.getClassName(post, isSystemMessage, fromWebhook, fromAutoResponder)}
+                onMouseOver={this.setHover}
+                onMouseLeave={this.unsetHover}
             >
-                <div
-                    id={'post_' + post.id}
-                    className={this.getClassName(post, isSystemMessage, fromWebhook)}
-                >
-                    <div className={'post__content ' + centerClass}>
-                        {profilePicContainer}
-                        <div>
-                            <PostHeader
-                                ref='header'
-                                post={post}
-                                handleCommentClick={this.handleCommentClick}
-                                handleDropdownOpened={this.handleDropdownOpened}
-                                user={this.props.user}
-                                currentUser={this.props.currentUser}
-                                compactDisplay={this.props.compactDisplay}
-                                status={this.props.status}
-                                isBusy={this.props.isBusy}
-                                lastPostCount={this.props.lastPostCount}
-                                replyCount={this.props.replyCount}
-                                consecutivePostByUser={this.props.consecutivePostByUser}
-                                getPostList={this.props.getPostList}
-                            />
-                            <PostBody
-                                post={post}
-                                handleCommentClick={this.handleCommentClick}
-                                compactDisplay={this.props.compactDisplay}
-                                lastPostCount={this.props.lastPostCount}
-                                isCommentMention={this.props.isCommentMention}
-                            />
-                        </div>
+                <div className={'post__content ' + centerClass}>
+                    {profilePicContainer}
+                    <div>
+                        <PostHeader
+                            post={post}
+                            handleCommentClick={this.handleCommentClick}
+                            handleDropdownOpened={this.handleDropdownOpened}
+                            user={this.props.user}
+                            currentUser={this.props.currentUser}
+                            compactDisplay={this.props.compactDisplay}
+                            status={this.props.status}
+                            isBusy={this.props.isBusy}
+                            lastPostCount={this.props.lastPostCount}
+                            isFirstReply={this.props.isFirstReply}
+                            replyCount={this.props.replyCount}
+                            showTimeWithoutHover={!hideProfilePicture}
+                            getPostList={this.props.getPostList}
+                            hover={this.state.hover}
+                        />
+                        <PostBody
+                            post={post}
+                            handleCommentClick={this.handleCommentClick}
+                            compactDisplay={this.props.compactDisplay}
+                            lastPostCount={this.props.lastPostCount}
+                            isCommentMention={this.props.isCommentMention}
+                            isFirstReply={this.props.isFirstReply}
+                        />
                     </div>
                 </div>
             </div>

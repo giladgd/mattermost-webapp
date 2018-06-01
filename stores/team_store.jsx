@@ -1,5 +1,5 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import EventEmitter from 'events';
 
@@ -9,11 +9,8 @@ import * as Selectors from 'mattermost-redux/selectors/entities/teams';
 import ChannelStore from 'stores/channel_store.jsx';
 import store from 'stores/redux_store.jsx';
 import UserStore from 'stores/user_store.jsx';
-
 import Constants from 'utils/constants.jsx';
-import {isFromWebhook, isSystemMessage} from 'utils/post_utils.jsx';
 import {getSiteURL} from 'utils/url.jsx';
-
 import AppDispatcher from '../dispatcher/app_dispatcher.jsx';
 
 const NotificationPrefs = Constants.NotificationPrefs;
@@ -34,30 +31,35 @@ class TeamStoreClass extends EventEmitter {
 
         store.subscribe(() => {
             const newEntities = store.getState().entities.teams;
+            const entities = this.entities;
+            this.entities = newEntities;
+
             let doEmit = false;
 
-            if (newEntities.currentTeamId !== this.entities.currentTeamId) {
+            if (newEntities.currentTeamId !== entities.currentTeamId) {
                 doEmit = true;
             }
-            if (newEntities.teams !== this.entities.teams) {
+
+            if (newEntities.teams !== entities.teams) {
                 doEmit = true;
             }
-            if (newEntities.myMembers !== this.entities.myMembers) {
+
+            if (newEntities.myMembers !== entities.myMembers) {
                 doEmit = true;
                 this.emitUnreadChange();
             }
-            if (newEntities.membersInTeam !== this.entities.membersInTeam) {
+
+            if (newEntities.membersInTeam !== entities.membersInTeam) {
                 doEmit = true;
             }
-            if (newEntities.stats !== this.entities.stats) {
+
+            if (newEntities.stats !== entities.stats) {
                 this.emitStatsChange();
             }
 
             if (doEmit) {
                 this.emitChange();
             }
-
-            this.entities = newEntities;
         });
     }
 
@@ -132,7 +134,7 @@ class TeamStoreClass extends EventEmitter {
     setCurrentId(id) {
         store.dispatch({
             type: TeamTypes.SELECT_TEAM,
-            data: id
+            data: id,
         });
     }
 
@@ -151,10 +153,7 @@ class TeamStoreClass extends EventEmitter {
     }
 
     getCurrentTeamRelativeUrl() {
-        if (this.getCurrent()) {
-            return '/' + this.getCurrent().name;
-        }
-        return '';
+        return this.getTeamRelativeUrl(this.getCurrentId());
     }
 
     getCurrentInviteLink() {
@@ -165,6 +164,16 @@ class TeamStoreClass extends EventEmitter {
         }
 
         return '';
+    }
+
+    getTeamRelativeUrl(id) {
+        const team = this.get(id);
+
+        if (!team) {
+            return '';
+        }
+
+        return '/' + team.name;
     }
 
     getTeamUrl(id) {
@@ -207,7 +216,7 @@ class TeamStoreClass extends EventEmitter {
     saveTeams(teams) {
         store.dispatch({
             type: TeamTypes.RECEIVED_TEAMS,
-            data: teams
+            data: teams,
         });
     }
 
@@ -227,14 +236,14 @@ class TeamStoreClass extends EventEmitter {
     saveStats(teamId, stats) {
         store.dispatch({
             type: TeamTypes.RECEIVED_TEAM_STATS,
-            data: stats
+            data: stats,
         });
     }
 
     saveMyTeamMembers(members) {
         store.dispatch({
             type: TeamTypes.RECEIVED_MY_TEAM_MEMBERS,
-            data: members
+            data: members,
         });
     }
 
@@ -255,7 +264,7 @@ class TeamStoreClass extends EventEmitter {
                     team,
                     {
                         msg_count: member.msg_count,
-                        mention_count: member.mention_count
+                        mention_count: member.mention_count,
                     });
             }
         }
@@ -278,17 +287,17 @@ class TeamStoreClass extends EventEmitter {
         return Object.values(Selectors.getTeamMemberships(store.getState()));
     }
 
-    saveMembersInTeam(teamId = this.getCurrentId(), members) {
+    saveMembersInTeam(members) {
         store.dispatch({
             type: TeamTypes.RECEIVED_MEMBERS_IN_TEAM,
-            data: Object.values(members)
+            data: Object.values(members),
         });
     }
 
     removeMemberInTeam(teamId = this.getCurrentId(), userId) {
         store.dispatch({
             type: TeamTypes.REMOVE_MEMBER_FROM_TEAM,
-            data: {team_id: teamId, user_id: userId}
+            data: {team_id: teamId, user_id: userId},
         });
     }
 
@@ -326,10 +335,6 @@ class TeamStoreClass extends EventEmitter {
         return false;
     }
 
-    isTeamAdminForCurrentTeam() {
-        return this.isTeamAdmin(UserStore.getCurrentId(), this.getCurrentId());
-    }
-
     isTeamAdmin(userId, teamId) {
         if (!Utils) {
             Utils = require('utils/utils.jsx'); //eslint-disable-line global-require
@@ -351,29 +356,12 @@ class TeamStoreClass extends EventEmitter {
 
         if (teamMember) {
             const newMember = Object.assign({}, teamMember, {
-                roles: member.roles
+                roles: member.roles,
             });
 
             store.dispatch({
                 type: TeamTypes.RECEIVED_MY_TEAM_MEMBER,
-                data: newMember
-            });
-        }
-    }
-
-    subtractUnread(teamId, msgs, mentions) {
-        let member = this.getMyTeamMembers().filter((m) => m.team_id === teamId)[0];
-        if (member) {
-            const msgCount = member.msg_count - msgs;
-            const mentionCount = member.mention_count - mentions;
-
-            member = Object.assign({}, member);
-            member.msg_count = (msgCount > 0) ? msgCount : 0;
-            member.mention_count = (mentionCount > 0) ? mentionCount : 0;
-
-            store.dispatch({
-                type: TeamTypes.RECEIVED_MY_TEAM_MEMBER,
-                data: member
+                data: newMember,
             });
         }
     }
@@ -389,7 +377,7 @@ class TeamStoreClass extends EventEmitter {
 
         store.dispatch({
             type: TeamTypes.RECEIVED_MY_TEAM_MEMBER,
-            data: member
+            data: member,
         });
     }
 
@@ -405,7 +393,7 @@ class TeamStoreClass extends EventEmitter {
 
             store.dispatch({
                 type: TeamTypes.RECEIVED_MY_TEAM_MEMBER,
-                data: member
+                data: member,
             });
         }
     }
@@ -443,25 +431,10 @@ TeamStore.dispatchToken = AppDispatcher.register((payload) => {
         TeamStore.saveTeamListings(action.teams);
         break;
     case ActionTypes.RECEIVED_MEMBERS_IN_TEAM:
-        TeamStore.saveMembersInTeam(action.team_id, action.team_members);
+        TeamStore.saveMembersInTeam(action.team_members);
         break;
     case ActionTypes.RECEIVED_TEAM_STATS:
         TeamStore.saveStats(action.team_id, action.stats);
-        break;
-    case ActionTypes.RECEIVED_POST:
-        if (Constants.IGNORE_POST_TYPES.indexOf(action.post.type) !== -1) {
-            return;
-        }
-
-        if (action.post.user_id === UserStore.getCurrentId() && !isSystemMessage(action.post) && !isFromWebhook(action.post)) {
-            return;
-        }
-
-        var id = action.websocketMessageProps ? action.websocketMessageProps.team_id : null;
-        if (id && TeamStore.getCurrentId() !== id) {
-            TeamStore.incrementMessages(id, action.post.channel_id);
-            TeamStore.incrementMentionsIfNeeded(id, action.websocketMessageProps);
-        }
         break;
     default:
     }

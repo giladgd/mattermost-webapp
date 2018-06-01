@@ -1,13 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
-import $ from 'jquery';
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 
 import * as PostActions from 'actions/post_actions.jsx';
-
+import messageHtmlToComponent from 'utils/message_html_to_component';
 import * as TextFormatting from 'utils/text_formatting.jsx';
 import {isUrlSafe} from 'utils/url.jsx';
 import {localizeMessage} from 'utils/utils.jsx';
@@ -23,53 +21,22 @@ export default class PostAttachment extends React.PureComponent {
         /**
          * The attachment to render
          */
-        attachment: PropTypes.object.isRequired
+        attachment: PropTypes.object.isRequired,
     }
 
     constructor(props) {
         super(props);
 
-        this.handleActionButtonClick = this.handleActionButtonClick.bind(this);
-        this.getActionView = this.getActionView.bind(this);
-        this.getFieldsTable = this.getFieldsTable.bind(this);
-        this.getInitState = this.getInitState.bind(this);
-        this.shouldCollapse = this.shouldCollapse.bind(this);
-        this.toggleCollapseState = this.toggleCollapseState.bind(this);
-    }
-
-    componentDidMount() {
-        $(this.refs.attachment).on('click', '.attachment-link-more', this.toggleCollapseState);
-    }
-
-    componentWillUnmount() {
-        $(this.refs.attachment).off('click', '.attachment-link-more', this.toggleCollapseState);
-    }
-
-    componentWillMount() {
-        this.setState(this.getInitState());
-    }
-
-    getInitState() {
-        const shouldCollapse = this.shouldCollapse();
-        const text = TextFormatting.formatText(this.props.attachment.text || '');
-        const uncollapsedText = text + (shouldCollapse ? `<div><a class="attachment-link-more" href="#">${localizeMessage('post_attachment.collapse', 'Show less...')}</a></div>` : '');
-        const collapsedText = shouldCollapse ? this.getCollapsedText() : text;
-
-        return {
-            shouldCollapse,
-            collapsedText,
-            uncollapsedText,
-            text: shouldCollapse ? collapsedText : uncollapsedText,
-            collapsed: shouldCollapse
+        this.state = {
+            collapsed: true,
         };
     }
 
-    toggleCollapseState(e) {
+    toggleCollapseState = (e) => {
         e.preventDefault();
         this.setState((prevState) => {
             return {
-                text: prevState.collapsed ? prevState.uncollapsedText : prevState.collapsedText,
-                collapsed: !prevState.collapsed
+                collapsed: !prevState.collapsed,
             };
         });
     }
@@ -79,7 +46,9 @@ export default class PostAttachment extends React.PureComponent {
         return (text.match(/\n/g) || []).length >= 5 || text.length > 700;
     }
 
-    getCollapsedText() {
+    getCollapsedTextHTML() {
+        // TODO: this breaks markdown formatting when it e.g. cuts a ``` block terminator
+        // Should be collapsed using another method.
         let text = this.props.attachment.text || '';
         if ((text.match(/\n/g) || []).length >= 5) {
             text = text.split('\n').splice(0, 5).join('\n');
@@ -88,7 +57,7 @@ export default class PostAttachment extends React.PureComponent {
             text = text.substr(0, 300);
         }
 
-        return TextFormatting.formatText(text) + `<div><a class="attachment-link-more" href="#">${localizeMessage('post_attachment.more', 'Show more...')}</a></div>`;
+        return TextFormatting.formatText(text);
     }
 
     getActionView() {
@@ -105,8 +74,9 @@ export default class PostAttachment extends React.PureComponent {
             }
             buttons.push(
                 <button
+                    data-action-id={action.id}
                     key={action.id}
-                    onClick={() => this.handleActionButtonClick(action.id)}
+                    onClick={this.handleActionButtonClick}
                 >
                     {action.name}
                 </button>
@@ -122,7 +92,9 @@ export default class PostAttachment extends React.PureComponent {
         );
     }
 
-    handleActionButtonClick(actionId) {
+    handleActionButtonClick = (e) => {
+        e.preventDefault();
+        const actionId = e.currentTarget.getAttribute('data-action-id');
         PostActions.doPostAction(this.props.postId, actionId);
     }
 
@@ -174,12 +146,16 @@ export default class PostAttachment extends React.PureComponent {
                     {field.title}
                 </th>
             );
+
+            const formattedText = TextFormatting.formatText(field.value || '');
+
             bodyCols.push(
                 <td
                     className='attachment-field'
                     key={'attachment__field-' + i + '__' + nrTables}
-                    dangerouslySetInnerHTML={{__html: TextFormatting.formatText(field.value || '')}}
-                />
+                >
+                    {messageHtmlToComponent(formattedText, false)}
+                </td>
             );
             rowPos += 1;
             lastWasLong = !(field.short === true);
@@ -216,12 +192,12 @@ export default class PostAttachment extends React.PureComponent {
 
         let preText;
         if (data.pretext) {
+            const formattedText = TextFormatting.formatText(data.pretext || '');
             preTextClass = 'attachment--pretext';
             preText = (
-                <div
-                    className='attachment__thumb-pretext'
-                    dangerouslySetInnerHTML={{__html: TextFormatting.formatText(data.pretext)}}
-                />
+                <div className='attachment__thumb-pretext'>
+                    {messageHtmlToComponent(formattedText, false)}
+                </div>
             );
         }
 
@@ -291,11 +267,26 @@ export default class PostAttachment extends React.PureComponent {
 
         let text;
         if (data.text) {
+            const shouldCollapse = this.shouldCollapse();
+            const collapsed = shouldCollapse && this.state.collapsed;
+            const textHTML = collapsed ? this.getCollapsedTextHTML() : TextFormatting.formatText(this.props.attachment.text || '');
+            const collapseMessage = collapsed ? localizeMessage('post_attachment.more', 'Show more...') : localizeMessage('post_attachment.collapse', 'Show less...');
+
             text = (
-                <div
-                    className='attachment__text'
-                    dangerouslySetInnerHTML={{__html: this.state.text}}
-                />
+                <div className='attachment__text'>
+                    {messageHtmlToComponent(textHTML, false)}
+                    {shouldCollapse &&
+                        <div>
+                            <a
+                                className='attachment-link-more'
+                                href='#'
+                                onClick={this.toggleCollapseState}
+                            >
+                                {collapseMessage}
+                            </a>
+                        </div>
+                    }
+                </div>
             );
         }
 
@@ -353,7 +344,7 @@ export default class PostAttachment extends React.PureComponent {
                                 {actions}
                             </div>
                             {thumb}
-                            <div style={{clear: 'both'}}/>
+                            <div style={style.footer}/>
                         </div>
                     </div>
                 </div>
@@ -361,3 +352,7 @@ export default class PostAttachment extends React.PureComponent {
         );
     }
 }
+
+const style = {
+    footer: {clear: 'both'},
+};

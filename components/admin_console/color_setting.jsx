@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -38,14 +38,14 @@ export default class ColorSetting extends React.PureComponent {
         /*
          * Set to disable the setting
          */
-        disabled: PropTypes.bool
+        disabled: PropTypes.bool,
     }
 
     constructor(props) {
         super(props);
 
         this.state = {
-            showPicker: false
+            showPicker: false,
         };
     }
 
@@ -64,8 +64,9 @@ export default class ColorSetting extends React.PureComponent {
     togglePicker = () => {
         if (this.props.disabled) {
             this.setState({showPicker: false});
+        } else {
+            this.setState({showPicker: !this.state.showPicker});
         }
-        this.setState({showPicker: !this.state.showPicker});
     }
 
     closePicker = (e) => {

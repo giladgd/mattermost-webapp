@@ -1,5 +1,5 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {createSelector} from 'reselect';
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
@@ -13,18 +13,18 @@ export function getSelectedPostId(state) {
     return state.views.rhs.selectedPostId;
 }
 
-function getSelectedPostChannelId(state) {
-    return state.views.rhs.selectedPostChannelId;
+export function getSelectedChannelId(state) {
+    return state.views.rhs.selectedChannelId;
 }
 
 function getRealSelectedPost(state) {
-    return state.entities.posts.posts[state.views.rhs.selectedPostId];
+    return state.entities.posts.posts[getSelectedPostId(state)];
 }
 
 export const getSelectedPost = createSelector(
     getSelectedPostId,
     getRealSelectedPost,
-    getSelectedPostChannelId,
+    getSelectedChannelId,
     getCurrentUserId,
     (selectedPostId, selectedPost, selectedPostChannelId, currentUserId) => {
         if (selectedPost) {
@@ -38,19 +38,57 @@ export const getSelectedPost = createSelector(
             type: PostTypes.FAKE_PARENT_DELETED,
             message: localizeMessage('rhs_thread.rootPostDeletedMessage.body', 'Part of this thread has been deleted due to a data retention policy. You can no longer reply to this thread.'),
             channel_id: selectedPostChannelId,
-            user_id: currentUserId
+            user_id: currentUserId,
         };
     }
 );
 
-export function makeGetCommentDraft(rootId) {
-    const defaultValue = {message: '', fileInfos: [], uploadsInProgress: []};
-    return makeGetGlobalItem(`comment_draft_${rootId}`, defaultValue);
+export function getRhsState(state) {
+    return state.views.rhs.rhsState;
+}
+
+export function getPreviousRhsState(state) {
+    return state.views.rhs.previousRhsState;
+}
+
+export function getSearchTerms(state) {
+    return state.views.rhs.searchTerms;
+}
+
+export function getSearchResultsTerms(state) {
+    return state.views.rhs.searchResultsTerms;
+}
+
+export function getIsSearchingTerm(state) {
+    return state.views.rhs.isSearchingTerm;
+}
+
+export function getIsSearchingFlaggedPost(state) {
+    return state.views.rhs.isSearchingFlaggedPost;
+}
+
+export function getIsSearchingPinnedPost(state) {
+    return state.views.rhs.isSearchingPinnedPost;
+}
+
+export function getPostDraft(state, prefixId, suffixId) {
+    const defaultDraft = {message: '', fileInfos: [], uploadsInProgress: []};
+    const draft = makeGetGlobalItem(prefixId + suffixId, defaultDraft)(state);
+
+    if (
+        typeof draft.message !== 'undefined' &&
+        typeof draft.uploadsInProgress !== 'undefined' &&
+        typeof draft.fileInfos !== 'undefined'
+    ) {
+        return draft;
+    }
+
+    return defaultDraft;
 }
 
 export function makeGetPostsEmbedVisibleObj() {
     return createSelector(
-        (state) => state.storage,
+        (state) => state.storage.storage,
         (state) => getBool(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLLAPSE_DISPLAY, Preferences.COLLAPSE_DISPLAY_DEFAULT),
         (state, posts) => posts,
         (storage, previewCollapsed, posts) => {
@@ -62,4 +100,16 @@ export function makeGetPostsEmbedVisibleObj() {
             return postsEmbedVisibleObj;
         }
     );
+}
+
+export function getIsRhsOpen(state) {
+    return state.views.rhs.isSidebarOpen;
+}
+
+export function getIsRhsMenuOpen(state) {
+    return state.views.rhs.isMenuOpen;
+}
+
+export function getIsRhsExpanded(state) {
+    return state.views.rhs.isSidebarExpanded;
 }

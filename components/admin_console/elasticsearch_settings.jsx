@@ -1,11 +1,10 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
 
 import {elasticsearchPurgeIndexes, elasticsearchTest} from 'actions/admin_actions.jsx';
-
 import {JobStatuses, JobTypes} from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
 
@@ -50,7 +49,7 @@ export default class ElasticsearchSettings extends AdminSettings {
             enableSearching: config.ElasticsearchSettings.EnableSearching,
             configTested: true,
             canSave: true,
-            canPurgeAndIndex: config.ElasticsearchSettings.EnableIndexing
+            canPurgeAndIndex: config.ElasticsearchSettings.EnableIndexing,
         };
     }
 
@@ -58,12 +57,12 @@ export default class ElasticsearchSettings extends AdminSettings {
         if (id === 'enableIndexing') {
             if (value === false) {
                 this.setState({
-                    enableSearching: false
+                    enableSearching: false,
                 });
             } else {
                 this.setState({
                     canSave: false,
-                    configTested: false
+                    configTested: false,
                 });
             }
         }
@@ -71,13 +70,13 @@ export default class ElasticsearchSettings extends AdminSettings {
         if (id === 'connectionUrl' || id === 'username' || id === 'password' || id === 'sniff') {
             this.setState({
                 configTested: false,
-                canSave: false
+                canSave: false,
             });
         }
 
         if (id !== 'enableSearching') {
             this.setState({
-                canPurgeAndIndex: false
+                canPurgeAndIndex: false,
             });
         }
 
@@ -86,7 +85,7 @@ export default class ElasticsearchSettings extends AdminSettings {
 
     handleSaved() {
         this.setState({
-            canPurgeAndIndex: this.state.enableIndexing
+            canPurgeAndIndex: this.state.enableIndexing,
         });
     }
 
@@ -103,7 +102,7 @@ export default class ElasticsearchSettings extends AdminSettings {
             () => {
                 this.setState({
                     configTested: true,
-                    canSave: true
+                    canSave: true,
                 });
                 success();
                 this.doSubmit();
@@ -111,7 +110,7 @@ export default class ElasticsearchSettings extends AdminSettings {
             (err) => {
                 this.setState({
                     configTested: false,
-                    canSave: false
+                    canSave: false,
                 });
                 error(err);
             }
@@ -176,12 +175,13 @@ export default class ElasticsearchSettings extends AdminSettings {
                                             defaultMessage='Learn more about Elasticsearch in our documentation.'
                                         />
                                     </a>
-                                )
+                                ),
                             }}
                         />
                     }
                     value={this.state.enableIndexing}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('ElasticsearchSettings.EnableIndexing')}
                 />
                 <TextSetting
                     id='connectionUrl'
@@ -208,13 +208,14 @@ export default class ElasticsearchSettings extends AdminSettings {
                                             defaultMessage='Please see documentation with server setup instructions.'
                                         />
                                     </a>
-                                )
+                                ),
                             }}
                         />
                     }
                     value={this.state.connectionUrl}
                     disabled={!this.state.enableIndexing}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('ElasticsearchSettings.ConnectionUrl')}
                 />
                 <TextSetting
                     id='username'
@@ -234,6 +235,7 @@ export default class ElasticsearchSettings extends AdminSettings {
                     value={this.state.username}
                     disabled={!this.state.enableIndexing}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('ElasticsearchSettings.Username')}
                 />
                 <TextSetting
                     id='password'
@@ -253,6 +255,7 @@ export default class ElasticsearchSettings extends AdminSettings {
                     value={this.state.password}
                     disabled={!this.state.enableIndexing}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('ElasticsearchSettings.Password')}
                 />
                 <BooleanSetting
                     id='sniff'
@@ -271,6 +274,7 @@ export default class ElasticsearchSettings extends AdminSettings {
                     value={this.state.sniff}
                     disabled={!this.state.enableIndexing}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('ElasticsearchSettings.Sniff')}
                 />
                 <RequestButton
                     requestAction={this.doTestConfig}
@@ -288,7 +292,7 @@ export default class ElasticsearchSettings extends AdminSettings {
                     }
                     successMessage={{
                         id: 'admin.elasticsearch.testConfigSuccess',
-                        defaultMessage: 'Test successful. Configuration saved.'
+                        defaultMessage: 'Test successful. Configuration saved.',
                     }}
                     disabled={!this.state.enableIndexing}
                 />
@@ -339,11 +343,11 @@ export default class ElasticsearchSettings extends AdminSettings {
                     }
                     successMessage={{
                         id: 'admin.elasticsearch.purgeIndexesButton.success',
-                        defaultMessage: 'Indexes purged successfully.'
+                        defaultMessage: 'Indexes purged successfully.',
                     }}
                     errorMessage={{
                         id: 'admin.elasticsearch.purgeIndexesButton.error',
-                        defaultMessage: 'Failed to purge indexes: {error}'
+                        defaultMessage: 'Failed to purge indexes: {error}',
                     }}
                     disabled={!this.state.canPurgeAndIndex}
                     label={(
@@ -370,6 +374,7 @@ export default class ElasticsearchSettings extends AdminSettings {
                     value={this.state.enableSearching}
                     disabled={!this.state.enableIndexing || !this.state.configTested}
                     onChange={this.handleChange}
+                    setByEnv={this.isSetByEnv('ElasticsearchSettings.EnableSearching')}
                 />
             </SettingsGroup>
         );

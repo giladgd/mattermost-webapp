@@ -1,25 +1,18 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
-
 import {getChannels} from 'mattermost-redux/actions/channels';
 
 import MoreChannels from './more_channels.jsx';
 
-function mapStateToProps(state, ownProps) {
-    return {
-        ...ownProps
-    };
-}
-
 function mapDispatchToProps(dispatch) {
     return {
         actions: bindActionCreators({
-            getChannels
-        }, dispatch)
+            getChannels,
+        }, dispatch),
     };
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(MoreChannels);
+export default connect(null, mapDispatchToProps)(MoreChannels);

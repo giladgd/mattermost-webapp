@@ -1,35 +1,40 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
-import {getBool} from 'mattermost-redux/selectors/entities/preferences';
+import {addMessageIntoHistory} from 'mattermost-redux/actions/posts';
 import {Preferences} from 'mattermost-redux/constants';
-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
+import {getConfig} from 'mattermost-redux/selectors/entities/general';
+import {getBool} from 'mattermost-redux/selectors/entities/preferences';
+
+import {openModal} from 'actions/views/modals';
+import {hideEditPostModal} from 'actions/post_actions';
+import {editPost} from 'actions/views/edit_post_modal';
 import {getEditingPost} from 'selectors/posts';
-import {setEditingPost} from 'actions/post_actions';
-import {editPost, addMessageIntoHistory} from 'mattermost-redux/actions/posts';
+import Constants from 'utils/constants';
 
 import EditPostModal from './edit_post_modal.jsx';
 
-function mapStateToProps(state, ownProps) {
+function mapStateToProps(state) {
+    const config = getConfig(state);
+
     return {
-        ...ownProps,
         ctrlSend: getBool(state, Preferences.CATEGORY_ADVANCED_SETTINGS, 'send_on_ctrl_enter'),
-        config: getConfig(state),
-        license: getLicense(state),
-        editingPost: getEditingPost(state)
+        config,
+        editingPost: getEditingPost(state),
+        maxPostSize: parseInt(config.MaxPostSize, 10) || Constants.DEFAULT_CHARACTER_LIMIT,
     };
 }
-
 
 function mapDispatchToProps(dispatch) {
     return {
         actions: bindActionCreators({
-            editPost,
-            setEditingPost,
             addMessageIntoHistory,
-        }, dispatch)
+            editPost,
+            hideEditPostModal,
+            openModal,
+        }, dispatch),
     };
 }
 

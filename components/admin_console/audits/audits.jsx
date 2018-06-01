@@ -1,5 +1,5 @@
-// Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -11,6 +11,7 @@ import LoadingScreen from 'components/loading_screen.jsx';
 
 export default class Audits extends React.PureComponent {
     static propTypes = {
+        isLicensed: PropTypes.bool.isRequired,
 
         /*
          * Array of audits to render
@@ -22,15 +23,15 @@ export default class Audits extends React.PureComponent {
             /*
              * Function to fetch audits
              */
-            getAudits: PropTypes.func.isRequired
-        }).isRequired
+            getAudits: PropTypes.func.isRequired,
+        }).isRequired,
     }
 
     constructor(props) {
         super(props);
 
         this.state = {
-            loadingAudits: true
+            loadingAudits: true,
         };
     }
 
@@ -50,7 +51,7 @@ export default class Audits extends React.PureComponent {
     render() {
         let content = null;
 
-        if (global.window.mm_license.IsLicensed !== 'true') {
+        if (!this.props.isLicensed) {
             return <div/>;
         }
 
@@ -58,7 +59,7 @@ export default class Audits extends React.PureComponent {
             content = <LoadingScreen/>;
         } else {
             content = (
-                <div style={{margin: '10px'}}>
+                <div style={style.auditTable}>
                     <AuditTable
                         audits={this.props.audits}
                         showUserId={true}
@@ -70,7 +71,7 @@ export default class Audits extends React.PureComponent {
         }
 
         return (
-            <div>
+            <div className='wrapper--admin'>
                 <ComplianceReports/>
 
                 <div className='panel audit-panel'>
@@ -99,3 +100,7 @@ export default class Audits extends React.PureComponent {
         );
     }
 }
+
+const style = {
+    auditTable: {margin: 10},
+};

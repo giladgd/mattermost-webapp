@@ -1,11 +1,11 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {Overlay} from 'react-bootstrap';
 
-import EmojiPicker from './emoji_picker.jsx';
+import EmojiPicker from './';
 
 export default class EmojiPickerOverlay extends React.PureComponent {
     static propTypes = {
@@ -17,24 +17,24 @@ export default class EmojiPickerOverlay extends React.PureComponent {
         rightOffset: PropTypes.number,
         topOffset: PropTypes.number,
         spaceRequiredAbove: PropTypes.number,
-        spaceRequiredBelow: PropTypes.number
+        spaceRequiredBelow: PropTypes.number,
     }
 
     // Reasonable defaults calculated from from the center channel
     static defaultProps = {
         spaceRequiredAbove: 422,
-        spaceRequiredBelow: 436
+        spaceRequiredBelow: 436,
     }
 
     constructor(props) {
         super(props);
 
         this.state = {
-            placement: 'top'
+            placement: 'top',
         };
     }
 
-    componentWillUpdate(nextProps) {
+    UNSAFE_componentWillUpdate(nextProps) { // eslint-disable-line camelcase
         if (nextProps.show && !this.props.show) {
             const targetBounds = nextProps.target().getBoundingClientRect();
 

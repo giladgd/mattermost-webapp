@@ -1,5 +1,5 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -25,8 +25,8 @@ export default class RevokeTokenButton extends React.PureComponent {
             /**
              * Function to revoke a user access token
              */
-            revokeUserAccessToken: PropTypes.func.isRequired
-        }).isRequired
+            revokeUserAccessToken: PropTypes.func.isRequired,
+        }).isRequired,
     };
 
     handleClick = async (e) => {

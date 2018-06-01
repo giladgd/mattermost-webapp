@@ -1,7 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import React from 'react';
+import PropTypes from 'prop-types';
 import {defineMessages, FormattedMessage, injectIntl, intlShape} from 'react-intl';
 
 import * as utils from 'utils/utils.jsx';
@@ -11,8 +12,8 @@ import SettingUpload from './setting_upload.jsx';
 const holders = defineMessages({
     importSlack: {
         id: 'team_import_tab.importSlack',
-        defaultMessage: 'Import from Slack (Beta)'
-    }
+        defaultMessage: 'Import from Slack (Beta)',
+    },
 });
 
 class TeamImportTab extends React.Component {
@@ -25,7 +26,7 @@ class TeamImportTab extends React.Component {
 
         this.state = {
             status: 'ready',
-            link: ''
+            link: '',
         };
     }
 
@@ -44,7 +45,7 @@ class TeamImportTab extends React.Component {
 
     render() {
         const {formatMessage} = this.props.intl;
-        var uploadDocsLink = (
+        const uploadDocsLink = (
             <a
                 href='https://docs.mattermost.com/administration/migrating.html#migrating-from-slack'
                 target='_blank'
@@ -57,16 +58,16 @@ class TeamImportTab extends React.Component {
             </a>
         );
 
-        var uploadExportInstructions = (
+        const uploadExportInstructions = (
             <strong>
                 <FormattedMessage
                     id='team_import_tab.importHelpExportInstructions'
-                    defaultMessage='Slack > Team Settings > Import/Export Data > Export > Start Export'
+                    defaultMessage='Slack > Administration > Workspace settings > Import/Export Data > Export > Start Export'
                 />
             </strong>
         );
 
-        var uploadExporterLink = (
+        const uploadExporterLink = (
             <a
                 href='https://github.com/grundleborg/slack-advanced-exporter'
                 target='_blank'
@@ -79,7 +80,20 @@ class TeamImportTab extends React.Component {
             </a>
         );
 
-        var uploadHelpText = (
+        const importCliLink = (
+            <a
+                href='https://docs.mattermost.com/administration/migrating.html#migrating-from-slack-using-the-mattermost-cli'
+                target='_blank'
+                rel='noopener noreferrer'
+            >
+                <FormattedMessage
+                    id='team_import_tab.importHelpCliDocsLink'
+                    defaultMessage='CLI tool for Slack import'
+                />
+            </a>
+        );
+
+        const uploadHelpText = (
             <div>
                 <p>
                     <FormattedMessage
@@ -93,7 +107,7 @@ class TeamImportTab extends React.Component {
                         defaultMessage='To import a team from Slack, go to {exportInstructions}. See {uploadDocsLink} to learn more.'
                         values={{
                             exportInstructions: uploadExportInstructions,
-                            uploadDocsLink
+                            uploadDocsLink,
                         }}
                     />
                 </p>
@@ -102,14 +116,23 @@ class TeamImportTab extends React.Component {
                         id='team_import_tab.importHelpLine3'
                         defaultMessage='To import posts with attached files, see {slackAdvancedExporterLink} for details.'
                         values={{
-                            slackAdvancedExporterLink: uploadExporterLink
+                            slackAdvancedExporterLink: uploadExporterLink,
+                        }}
+                    />
+                </p>
+                <p>
+                    <FormattedMessage
+                        id='team_import_tab.importHelpLine4'
+                        defaultMessage='For Slack teams with over 10,000 messages, we recommend using the {cliLink}.'
+                        values={{
+                            cliLink: importCliLink,
                         }}
                     />
                 </p>
             </div>
         );
 
-        var uploadSection = (
+        const uploadSection = (
             <SettingUpload
                 title={formatMessage(holders.importSlack)}
                 submit={this.doImportSlack}
@@ -118,9 +141,8 @@ class TeamImportTab extends React.Component {
             />
         );
 
-        var messageSection;
+        let messageSection;
         switch (this.state.status) {
-
         case 'ready':
             messageSection = '';
             break;
@@ -152,7 +174,7 @@ class TeamImportTab extends React.Component {
                         />
                     </a>
                 </p>
-        );
+            );
             break;
         case 'fail':
             messageSection = (
@@ -184,6 +206,7 @@ class TeamImportTab extends React.Component {
                         className='close'
                         data-dismiss='modal'
                         aria-label='Close'
+                        onClick={this.props.closeModal}
                     >
                         <span aria-hidden='true'>{'×'}</span>
                     </button>
@@ -192,7 +215,10 @@ class TeamImportTab extends React.Component {
                         ref='title'
                     >
                         <div className='modal-back'>
-                            <i className='fa fa-angle-left'/>
+                            <i
+                                className='fa fa-angle-left'
+                                onClick={this.props.collapseModal}
+                            />
                         </div>
                         <FormattedMessage
                             id='team_import_tab.import'
@@ -221,7 +247,9 @@ class TeamImportTab extends React.Component {
 }
 
 TeamImportTab.propTypes = {
-    intl: intlShape.isRequired
+    intl: intlShape.isRequired,
+    closeModal: PropTypes.func.isRequired,
+    collapseModal: PropTypes.func.isRequired,
 };
 
 export default injectIntl(TeamImportTab);

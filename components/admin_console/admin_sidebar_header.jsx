@@ -1,11 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// See LICENSE.txt for license information.
 
 import $ from 'jquery';
-
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
-
 import {Client4} from 'mattermost-redux/client';
 
 import UserStore from 'stores/user_store.jsx';

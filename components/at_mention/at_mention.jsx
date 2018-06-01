@@ -1,27 +1,29 @@
-// Copyright (c) 2017-present Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import PropTypes from 'prop-types';
 import React from 'react';
 import {OverlayTrigger} from 'react-bootstrap';
-
 import {Client4} from 'mattermost-redux/client';
+import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
 import Pluggable from 'plugins/pluggable';
-
-import ProfilePopover from 'components/profile_popover.jsx';
+import ProfilePopover from 'components/profile_popover';
 
 export default class AtMention extends React.PureComponent {
     static propTypes = {
-        mentionName: PropTypes.string.isRequired,
-        usersByUsername: PropTypes.object.isRequired,
+        children: PropTypes.node,
+        currentUserId: PropTypes.string.isRequired,
+        hasMention: PropTypes.bool,
         isRHS: PropTypes.bool,
-        hasMention: PropTypes.bool
+        mentionName: PropTypes.string.isRequired,
+        teammateNameDisplay: PropTypes.string.isRequired,
+        usersByUsername: PropTypes.object.isRequired,
     };
 
     static defaultProps = {
         isRHS: false,
-        hasMention: false
+        hasMention: false,
     }
 
     constructor(props) {
@@ -30,14 +32,14 @@ export default class AtMention extends React.PureComponent {
         this.hideProfilePopover = this.hideProfilePopover.bind(this);
 
         this.state = {
-            user: this.getUserFromMentionName(props)
+            user: this.getUserFromMentionName(props),
         };
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) { // eslint-disable-line camelcase
         if (nextProps.mentionName !== this.props.mentionName || nextProps.usersByUsername !== this.props.usersByUsername) {
             this.setState({
-                user: this.getUserFromMentionName(nextProps)
+                user: this.getUserFromMentionName(nextProps),
             });
         }
     }
@@ -48,10 +50,10 @@ export default class AtMention extends React.PureComponent {
 
     getUserFromMentionName(props) {
         const usersByUsername = props.usersByUsername;
-        let mentionName = props.mentionName;
+        let mentionName = props.mentionName.toLowerCase();
 
         while (mentionName.length > 0) {
-            if (usersByUsername[mentionName]) {
+            if (usersByUsername.hasOwnProperty(mentionName)) {
                 return usersByUsername[mentionName];
             }
 
@@ -68,18 +70,23 @@ export default class AtMention extends React.PureComponent {
 
     render() {
         if (!this.state.user) {
-            return <span>{'@' + this.props.mentionName}</span>;
+            return <React.Fragment>{this.props.children}</React.Fragment>;
         }
 
         const user = this.state.user;
         const suffix = this.props.mentionName.substring(user.username.length);
+
+        let className = 'mention-link';
+        if (user.id === this.props.currentUserId) {
+            className += ' mention--highlight';
+        }
 
         return (
             <span>
                 <OverlayTrigger
                     ref='overlay'
                     trigger='click'
-                    placement='right'
+                    placement='left'
                     rootClose={true}
                     overlay={
                         <Pluggable>
@@ -93,7 +100,7 @@ export default class AtMention extends React.PureComponent {
                         </Pluggable>
                     }
                 >
-                    <a className='mention-link'>{'@' + user.username}</a>
+                    <a className={className}>{'@' + displayUsername(user, this.props.teammateNameDisplay)}</a>
                 </OverlayTrigger>
                 {suffix}
             </span>

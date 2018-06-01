@@ -1,17 +1,17 @@
-// Copyright (c) 2017 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
 
 import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
-
-import {getPlugins, removePlugin, uploadPlugin, activatePlugin, deactivatePlugin} from 'mattermost-redux/actions/admin';
+import {getPluginStatuses, removePlugin, uploadPlugin, activatePlugin, deactivatePlugin} from 'mattermost-redux/actions/admin';
 
 import PluginManagement from './plugin_management.jsx';
 
 function mapStateToProps(state, ownProps) {
     return {
         ...ownProps,
-        plugins: state.entities.admin.plugins
+        plugins: state.entities.admin.plugins,
+        pluginStatuses: state.entities.admin.pluginStatuses,
     };
 }
 
@@ -20,10 +20,10 @@ function mapDispatchToProps(dispatch) {
         actions: bindActionCreators({
             uploadPlugin,
             removePlugin,
-            getPlugins,
+            getPluginStatuses,
             activatePlugin,
-            deactivatePlugin
-        }, dispatch)
+            deactivatePlugin,
+        }, dispatch),
     };
 }
 
